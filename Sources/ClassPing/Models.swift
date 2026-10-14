@@ -10,18 +10,61 @@ import Foundation
 /// One class taken mirrors the 'classes' table in supabase for sync
 /// Identifiable: lists can tell items apart, Codable: saved as JSON
 /// Hashable can be compared and stored in sets
+/// The nine subject colors, by name. The web app stores the name ("teal"), not a
+/// hex code, so the same name works in light and dark mode and syncs as-is.
+enum SubjectColor: String, Codable, CaseIterable {
+    case amber, indigo, coral, teal, pink, violet, mint, ocean, slate
+}
 
+///One extra time slot for class, like a Friday lab on top of the Mon/Wed Lec
+/// In Lib/class-meetings.ts this is 'ClassMeeting' and its saved inside the class row
+/// ('additional meetings'), so its field names stay 'start' and 'end'
+struct ClassMeeting: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var days: [Int]
+    var start: Int
+    var end: Int
+    var room: String? = nil
+    var label: String? = nil
+
+}
+///Identifiable means: Lists can tell items apart
+/// Codable means: Saved as JSON
+/// Hashable: can be compared and stored in sets
 struct Course: Identifiable, Codable, Hashable {
     var id = UUID()  //a unique ID made automatically
     var name: String //Course names 'Machine Learning'
     var short: String // "ML" 
-    var color: String // hex color code
+    var color: SubjectColor // hex color code
     var days: [Int] // meeting days 0 = Monday .... 6 = Sunday 
+    var additionalMeetings: [ClassMeeting] = []
+    
+    //Reminders Before class
     var startMin: Int //min from midnight 600= 10:00am
     var endMin: Int 
     var remindBefore = 10
     var alarm = true
+    var extraReminders: [Int] = []
+    // Details. `String?` means "a String, or nothing": a class may have no room yet
+    var credits: Double? = nil
     var room: String? = nil
+    var instructor: String? = nil
+    var notes: String? = nil
+    var term: String? = nil
+    var archived = false
+    var goal: Double? = nil
+
+    //When it was moved to Recently deleted, Nothing means its live
+    //Deleting only sets this, so it can be restored for 30 days
+
+    var deletedAt: Date? = nil
+
+}
+
+struct Subtask: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var title: String
+    var done = false
 }
 
 ///One assignemnt, quiz or exam. Mirrors the task tables in Supabase
@@ -29,12 +72,37 @@ struct Assignment: Identifiable, Codable, Hashable {
     ///The Kinds of work Classping tracks. String raw values saves as plain text
     enum Kind: String, Codable {case assignment, quiz, exam, reminder}
 
+    ///How a task repeats once its completed
+    enum RepeatRule: String, Codable {case weekly, monthly}
+
     var id = UUID()
     var courseID: UUID? //can be empty
     var title: String
-    var due: String
+
+    // The deadline: local wall-clock time, never an instant.
+    //   due nil                -> undated (Inbox)
+    //   due set, dueTime nil   -> all-day (never pretend it's 23:59)
+    //   due set, dueTime set   -> exact time
+    var due: String?
     var dueTime: String? = nil
-    var kind = Kind.assignment //a plain assignemnt unless user picks another kind
-    var reminder = false
-    var done = false
-}
+
+    var kind = Kind.assignment         // a plain assignment unless you pick another kind
+    var reminder = false               // "nudge me until it's done", daily from 24 h out
+    var done = false                   // on screen this is "Complete" / "Completed"
+
+    var notes: String? = nil
+    var subtask: [Subtask] = []
+    
+    var remindLeads: [Int] = []
+    var snoozeUntil: Date? = nil
+
+    var repeatRule: RepeatRule? = nil
+    var repeatUntil: String? = nil
+    var recurrenceParentID: UUID? = nil
+
+    var sourceFeed: String? = nil
+    var sourceUID: String? = nil
+    var sourceHash: String? = nil
+
+    var deletedAt: Date? = nil
+    }
