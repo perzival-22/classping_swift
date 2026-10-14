@@ -1,3 +1,12 @@
+//
+//  File:    ~/ClassPing/Sources/ClassPing/Store.swift
+//  Ports:   lib/store.tsx (the shared state) and the sample week from your designs
+//
+//  Summary: The one place the app's data lives while it runs, plus a sample
+//           store to show until you add your own classes.
+//
+
+
 import Foundation
 import Observation
 

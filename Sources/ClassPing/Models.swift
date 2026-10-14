@@ -1,3 +1,11 @@
+//
+//  File:    ~/ClassPing/Sources/ClassPing/Models.swift
+//  Ports:   docs/SCHEMA.md, lib/supabase/map.ts (classes and tasks rows)
+//
+//  Summary: The two core data types: a Course (one class you take) and an
+//           Assignment (one piece of work). Phase 1 completes them.
+//
+
 import Foundation
 /// One class taken mirrors the 'classes' table in supabase for sync
 /// Identifiable: lists can tell items apart, Codable: saved as JSON
