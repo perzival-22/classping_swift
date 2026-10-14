@@ -11,14 +11,16 @@ import SwiftUI
 /// @main marks where the app starts, similar to the root layout in the web app
 @main
 struct ClassPingApp: App {
-    /// The app's single store. @State keeps the same store alive for as log as the 
-    /// app runs, instead of making a new one everytime SwiftUI redraws
-    @State private var store = Store.sample
+    /// The app's single store. `@State` keeps the same Store alive for as long as
+    /// the app runs, instead of making a new one every time SwiftUI redraws.
+    // CHANGED in Phase 1: load what's saved on the phone instead of always the sample.
+    @State private var store = Store.load()
+
     var body: some Scene {
         WindowGroup {
-            /// '.environment(store)' putrs the store where any screen below can ask for it
-            /// with '@Environment(Store.self)' . In the webb app this is the 
-            /// <StoreProvider> in lib/store.tsx
+            // `.environment(store)` puts the store where any screen below can ask for it
+            // with `@Environment(Store.self)`. In the web app this is the
+            // <StoreProvider> in lib/store.tsx.
             RootView()
                 .environment(store)
         }

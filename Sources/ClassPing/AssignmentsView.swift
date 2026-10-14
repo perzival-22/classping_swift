@@ -6,36 +6,71 @@
 //  Summary: Lists every assignment in the store with its class and due date, so you
 //           can see on the phone that the store reached the screen.
 //
-
 import SwiftUI
 
+/// The Tasks tab, for now a simple list.
 struct AssignmentsView: View {
-    /// Reads the shared store that ClassPingApp put into the environment
-    
+    /// Reads the shared store that ClassPingApp put into the environment.
     @Environment(Store.self) private var store
+
     var body: some View {
-        // NEW in Phase 0: `List` draws one row per item. It can do that because
-        // Assignment is Identifiable (it has an `id`), so SwiftUI can tell rows apart.
-        List(store.assignments) { assignment in
-            VStack(alignment: .leading, spacing: 4) {
-                Text(assignment.title)
-                    .font(.headline)
-                    // Completed work is struck through, like the web's done rows.
-                    .strikethrough(assignment.done)
-                // The second line: which class, and when it's due.
-                Text("\(courseName(for: assignment)) · due \(assignment.due)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        // CHANGED in Phase 1: `List { ... }` with `ForEach` inside, so the list can
+        // hold a warning row as well as the assignment rows.
+        List {
+            // Only shown when the last save failed. Never hide a failed save.
+            if store.lastSaveFailed {
+                Text("Couldn't save on this device. Your last change may be lost if the app closes.")
+                    .foregroundStyle(.red)
+            }
+
+            // One row per assignment. A Button makes the whole row tappable.
+            ForEach(store.assignments) { assignment in
+                Button {
+                    store.toggleAssignment(assignment.id)
+                } label: {
+                    row(for: assignment)
+                }
+                .foregroundStyle(.primary)   // keep the text black/white, not button blue
             }
         }
     }
-///The short name of the class as assingment belongs to, or Inbox when it has none.
-private func courseName(for assignment: Assignment) -> String {
-    //first (where:) walks the course and stops at the first match. it 
-    // returns an optional, because there might be no match
-    let course = store.courses.first(where: { $0.id == assignment.courseID})
-    // '?.short ?? "Inbox"': use the course short name if there is a course, 
-    // otherwise the word the webapp usesd for unfiolled work.
-    return course?.short ?? "Inbox"
+
+    /// What one row shows: the title, then the class and the deadline.
+    /// NEW in Phase 1 (moved out of `body` to keep it readable)
+    private func row(for assignment: Assignment) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(assignment.title)
+                .font(.headline)
+                // Completed work is struck through, like the web's done rows.
+                .strikethrough(assignment.done)
+            Text("\(courseName(for: assignment)) · \(deadlineText(for: assignment))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// The short name of the class an assignment belongs to, or "Inbox" when it has none.
+    private func courseName(for assignment: Assignment) -> String {
+        // `first(where:)` walks the courses and stops at the first match. It returns
+        // an optional, because there might be no match.
+        let course = store.courses.first(where: { $0.id == assignment.courseID })
+        // `?.short ?? "Inbox"`: use the course's short name if there is a course,
+        // otherwise the word the web app uses for unfiled work.
+        return course?.short ?? "Inbox"
+    }
+
+    /// The deadline in words, for now the raw stored text. Phase 2 makes it friendly
+    /// ("Tomorrow, 10:00 AM") with the ported lib/deadline.ts helpers.
+    /// NEW in Phase 1: `due` is optional now, so "no date" needs its own case.
+    private func deadlineText(for assignment: Assignment) -> String {
+        // `if let` unwraps the optional: inside the braces, `due` is a plain String.
+        if let due = assignment.due {
+            // A time is only meaningful when there's a date.
+            if let time = assignment.dueTime {
+                return "due \(due) at \(time)"
+            }
+            return "due \(due), all day"
+        }
+        return "no date"
     }
 }

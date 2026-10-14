@@ -17,6 +17,15 @@ import Observation
 final class Store {
     var courses: [Course] = []           // every class you take
     var assignments: [Assignment] = []   // every assignment, open or done
+    var grades: [Grade] = []             // NEW in Phase 1
+    var notes: [Note] = []               // NEW in Phase 1
+    var taskPlans: [TaskPlan] = []       // NEW in Phase 1
+    var studySessions: [StudySession] = [] // NEW in Phase 1
+    var profile = Profile()  
+
+     /// True when the last save to the phone failed. The screens must say so,
+    /// because "Saved on this device" has to be true when the app claims it.
+    var lastSaveFailed = false           // NEW in Phase 1
 }
 
 extension Store {
@@ -24,16 +33,18 @@ extension Store {
     /// The app uses it until you add your own. End times are made up.
     static var sample: Store {
         // Times are minutes from midnight: 510 = 8:30 AM, 560 = 9:20 AM.
-        let calc = Course(name: "Calculus III", short: "Calc", color: "#E17055",
+        // CHANGED in Phase 1: colors are names now, not hex codes.
+        let calc = Course(name: "Calculus III", short: "Calc", color: .coral,
                           days: [0, 2, 4], startMin: 510, endMin: 560)
-        let ml = Course(name: "Foundations of Machine Learning", short: "ML", color: "#6C5CE7",
+        let ml = Course(name: "Foundations of Machine Learning", short: "ML", color: .indigo,
                         days: [0, 2], startMin: 600, endMin: 680, remindBefore: 15, room: "Friend 101")
-        let poli = Course(name: "Modern Political Theory", short: "Poli", color: "#00B894",
+        let poli = Course(name: "Modern Political Theory", short: "Poli", color: .teal,
                           days: [0, 2], startMin: 810, endMin: 885)
-        let ochem = Course(name: "Organic Chemistry II", short: "OChem", color: "#0984E3",
+        let ochem = Course(name: "Organic Chemistry II", short: "OChem", color: .ocean,
                            days: [1, 3], startMin: 540, endMin: 615)
-        let psych = Course(name: "Introduction to Psychology", short: "Psych", color: "#FDCB6E",
+        let psych = Course(name: "Introduction to Psychology", short: "Psych", color: .amber,
                            days: [1, 3], startMin: 900, endMin: 975)
+
 
         let store = Store()
         store.courses = [calc, ml, poli, ochem, psych]
@@ -44,6 +55,9 @@ extension Store {
             Assignment(courseID: poli.id, title: "Reading response: Rawls, Ch. 3", due: day(3), reminder: true),
             Assignment(courseID: calc.id, title: "Midterm study guide", due: day(-2), done: true),
             Assignment(courseID: psych.id, title: "Reflection journal", due: day(-1), done: true),
+            // NEW in Phase 1: an exam with an exact time, and an undated Inbox item.
+            Assignment(courseID: calc.id, title: "Midterm 2", due: day(5), dueTime: "10:00", kind: .exam),
+            Assignment(title: "Email advisor about spring classes"),
         ]
         return store
     }
