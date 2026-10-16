@@ -70,10 +70,14 @@ struct Subtask: Identifiable, Codable, Hashable {
 ///One assignemnt, quiz or exam. Mirrors the task tables in Supabase
 struct Assignment: Identifiable, Codable, Hashable {
     ///The Kinds of work Classping tracks. String raw values saves as plain text
-    enum Kind: String, Codable {case assignment, quiz, exam, reminder}
+    enum Kind: String, Codable, CaseIterable {case assignment, quiz, exam, reminder}
+
+    var subtasks: [Subtask] = []
+
+    var snoozedUntil: Date? = nil
 
     ///How a task repeats once its completed
-    enum RepeatRule: String, Codable {case weekly, monthly}
+    enum RepeatRule: String, Codable, CaseIterable {case weekly, monthly}
 
     var id = UUID()
     var courseID: UUID? //can be empty
