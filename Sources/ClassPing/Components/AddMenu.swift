@@ -1,33 +1,41 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Components/AddMenu.swift
-//  Phase:   3 (app shell), changed in 4a (the first three rows open the form)
+//  Phase:   3 (app shell), changed in 4a (the first three rows open the
+//           task form) and 5b (Class opens the class form)
 //  Ports:   components/AddMenu.tsx (the five labelled choices)
 //
 //  Summary: The sheet the Add button opens: the five things you can add, named,
-//           in the same order as the web app. Assignment, Exam and Reminder now
-//           slide in the task form; Note and Class still just close (Phases 8 and 5).
+//           in the same order as the web app. Assignment, Exam and Reminder
+//           slide in the task form, Class slides in the class form; Note still
+//           just closes (Phase 8).
 //
 
 import SwiftUI
+
+/// The value pushed when you pick Class. An empty marker type: it carries no
+/// data, it just tells `.navigationDestination` below which form to show.
+// NEW in Phase 5b
+struct NewCourseLink: Hashable {}
 
 struct AddMenu: View {
     /// `dismiss` closes the sheet, the way `onClose()` does in the web component.
     @Environment(\.dismiss) private var dismiss
     @Environment(Store.self) private var store
 
-    /// How tall the sheet is. Starts at half height; jumps to full when the
+    /// How tall the sheet is. Starts at half height; jumps to full when a
     /// form slides in, because a form needs the room.
     @State private var detent: PresentationDetent = .medium   // NEW in Phase 4a
 
     /// One choice in the menu. `symbol` is an SF Symbol name (the native icon set
     /// that replaces components/icons.tsx). `kind` is set for the three rows
-    /// that open the task form, and nil for Note and Class.
+    /// that open the task form; `addsCourse` for the Class row.
     private struct Option: Identifiable {
         let id = UUID()
         let label: String
         let detail: String
         let symbol: String
         var kind: Assignment.Kind? = nil       // NEW in Phase 4a
+        var addsCourse = false                 // NEW in Phase 5b
     }
 
     /// The five choices, matching AddMenu.tsx's list and wording.
@@ -36,22 +44,26 @@ struct AddMenu: View {
         Option(label: "Exam", detail: "A test or quiz to revise for", symbol: "graduationcap", kind: .exam),
         Option(label: "Reminder", detail: "Something to bring or do, not graded", symbol: "bell", kind: .reminder),
         Option(label: "Note", detail: "Write down a lecture or a thought", symbol: "pencil"),
-        Option(label: "Class", detail: "Add a subject to your timetable", symbol: "book"),
+        // CHANGED in Phase 5b: Class now opens the class form.
+        Option(label: "Class", detail: "Add a subject to your timetable", symbol: "book", addsCourse: true),
     ]
 
     var body: some View {
         NavigationStack {
             List(options) { opt in
-                // CHANGED in Phase 4a: a row with a kind is a NavigationLink.
-                // `NavigationLink(value:)` doesn't build the next screen itself;
-                // it pushes a value (here the kind), and the stack looks up what
-                // to show for that type in `.navigationDestination` below.
+                // A row with a kind pushes that kind; the Class row pushes the
+                // marker. Each value type has its own destination below.
                 if let kind = opt.kind {
                     NavigationLink(value: kind) {
                         label(for: opt)
                     }
+                } else if opt.addsCourse {
+                    // NEW in Phase 5b
+                    NavigationLink(value: NewCourseLink()) {
+                        label(for: opt)
+                    }
                 } else {
-                    // Note (Phase 8) and Class (Phase 5) still just close the menu.
+                    // Note (Phase 8) still just closes the menu.
                     Button {
                         dismiss()
                     } label: {
@@ -67,10 +79,15 @@ struct AddMenu: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            // NEW in Phase 4a: what to show when a kind is pushed. Saving closes
-            // the whole Add sheet (not just the form), so `onFinish` is our dismiss.
+            // What to show when a kind is pushed. Saving closes the whole Add
+            // sheet (not just the form), so `onFinish` is our dismiss.
             .navigationDestination(for: Assignment.Kind.self) { kind in
                 AssignmentFormView(kind: kind, onFinish: { dismiss() })
+                    .onAppear { detent = .large }
+            }
+            // NEW in Phase 5b: and when Class is picked.
+            .navigationDestination(for: NewCourseLink.self) { _ in
+                CourseFormView(onFinish: { dismiss() })
                     .onAppear { detent = .large }
             }
         }

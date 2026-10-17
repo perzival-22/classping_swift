@@ -1,9 +1,10 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Models.swift
+//  Phase:   5a (ClassMeeting moved into Logic; Course adopts Schedulable)
 //  Ports:   docs/SCHEMA.md, lib/supabase/map.ts (classes and tasks rows)
 //
 //  Summary: The two core data types: a Course (one class you take) and an
-//           Assignment (one piece of work). Phase 1 completes them.
+//           Assignment (one piece of work). Meeting helpers live in Logic/.
 //
 
 import Foundation
@@ -16,18 +17,7 @@ enum SubjectColor: String, Codable, CaseIterable {
     case amber, indigo, coral, teal, pink, violet, mint, ocean, slate
 }
 
-///One extra time slot for class, like a Friday lab on top of the Mon/Wed Lec
-/// In Lib/class-meetings.ts this is 'ClassMeeting' and its saved inside the class row
-/// ('additional meetings'), so its field names stay 'start' and 'end'
-struct ClassMeeting: Identifiable, Codable, Hashable {
-    var id = UUID()
-    var days: [Int]
-    var start: Int
-    var end: Int
-    var room: String? = nil
-    var label: String? = nil
-
-}
+// ClassMeeting lives beside its validation helpers in Logic/ClassMeetings.swift.
 ///Identifiable means: Lists can tell items apart
 /// Codable means: Saved as JSON
 /// Hashable: can be compared and stored in sets
@@ -35,7 +25,7 @@ struct Course: Identifiable, Codable, Hashable {
     var id = UUID()  //a unique ID made automatically
     var name: String //Course names 'Machine Learning'
     var short: String // "ML" 
-    var color: SubjectColor // hex color code
+    var color: SubjectColor // stored subject color name
     var days: [Int] // meeting days 0 = Monday .... 6 = Sunday 
     var additionalMeetings: [ClassMeeting] = []
     
@@ -54,12 +44,20 @@ struct Course: Identifiable, Codable, Hashable {
     var archived = false
     var goal: Double? = nil
 
+    // Optional provenance preserves compatibility with existing saved courses.
+    var sourceFeed: String? = nil
+    var sourceUID: String? = nil
+    var sourceHash: String? = nil
+
     //When it was moved to Recently deleted, Nothing means its live
     //Deleting only sets this, so it can be restored for 30 days
 
     var deletedAt: Date? = nil
 
 }
+
+/// Lets the week helpers read a course’s primary and additional meetings.
+extension Course: Schedulable {}
 
 struct Subtask: Identifiable, Codable, Hashable {
     var id = UUID()
@@ -95,10 +93,8 @@ struct Assignment: Identifiable, Codable, Hashable {
     var done = false                   // on screen this is "Complete" / "Completed"
 
     var notes: String? = nil
-    var subtask: [Subtask] = []
     
     var remindLeads: [Int] = []
-    var snoozeUntil: Date? = nil
 
     var repeatRule: RepeatRule? = nil
     var repeatUntil: String? = nil
