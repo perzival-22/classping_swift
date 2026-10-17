@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Courses/CourseFormView.swift
-//  Phase:   5b (classes: add and edit)
+//  Phase:   5b (classes: add and edit), changed in 7a (the reminder footer)
 //  Ports:   components/ClassForm.tsx, app/class/new/page.tsx and
 //           app/class/[id]/edit/page.tsx (one form, two modes)
 //
@@ -121,9 +121,10 @@ struct CourseFormView: View {
                     }
                 }
             } footer: {
-                // Honest about today: Phase 7 is when reminders actually ring.
+                // CHANGED in Phase 7a: the alarm really rings now. The web
+                // form says the same, minus its "More details" pointer.
                 Text(alarm
-                     ? "Preference saved: \(remindBefore) minutes before each meeting. Reminder notifications are coming soon."
+                     ? "Reminder: \(remindBefore) minutes before each meeting. It rings even in quiet hours."
                      : "Pre-class reminders are off.")
             }
 

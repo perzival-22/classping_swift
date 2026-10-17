@@ -1,12 +1,13 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/ProfileView.swift
-//  Phase:   5a (the new tab bar and the week)
+//  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card)
 //  Ports:   the profile card and the Appearance / App color sections of
 //           app/settings/page.tsx, moved into their own tab (D-19)
 //
 //  Summary: The Profile tab. For now: your avatar and name, the Appearance
-//           card (moved here from Today), and a list of what arrives in this
-//           tab later. Phase 11 builds the full settings, Phase 12 your level.
+//           card (moved here from Today), the Reminders card, and a list of
+//           what arrives in this tab later. Phase 11 builds the full
+//           settings, Phase 12 your level.
 //
 
 import SwiftUI
@@ -64,11 +65,16 @@ struct ProfileView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cardStyle()
 
+                // MARK: Reminders
+                // NEW in Phase 7a: the after-class nudge and quiet hours.
+                RemindersSection()
+
                 // MARK: Coming to this tab
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("COMING TO THIS TAB")
                     comingRow("graduationcap", "Grades & GPA")
-                    comingRow("bell", "Reminders and quiet hours")
+                    // CHANGED in Phase 7a: the "Reminders and quiet hours" row
+                    // is gone; it's the card above now.
                     comingRow("calendar", "Semester, backups, Recently Deleted")
                     comingRow("person.crop.circle", "Your name, photo and account")
                 }
