@@ -27,7 +27,7 @@ final class Store {
     /// because "Saved on this device" has to be true when the app claims it.
     var lastSaveFailed = false           // NEW in Phase 1
 
-    /// The latest assignment deletion, available to undo during this session.
+    /// The latest assignment or class deletion, available to undo this session.
     var pendingUndo: PendingUndo? = nil
 }
 

@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Records.swift
-//  Phase:   1 (complete data models)
+//  Phase:   1 (complete data models), two field names fixed in 6a
 //  Ports:   lib/store.tsx (GradeItem), lib/notes.ts (NoteItem),
 //           lib/planning.ts (TaskPlan, StudySession), lib/supabase/map.ts
 //
@@ -32,9 +32,9 @@ struct Note: Identifiable, Codable, Hashable {
     var date: String
     var title = ""
     var body = ""
-    var assignemntID: UUID? = nil
+    var assignmentID: UUID? = nil
 
-    var updateAt = Date()
+    var updatedAt = Date()
     var deletedAt:  Date? = nil
 }
 

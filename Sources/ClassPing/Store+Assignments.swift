@@ -1,25 +1,38 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Assignments.swift
-//  Phase:   1 (save and load), rewritten in 4a (every task action)
+//  Phase:   1 (save and load), rewritten in 4a (every task action),
+//           changed in 6b (Undo covers classes too)
 //  Ports:   lib/store.tsx (addTask, updateTask, deleteTask, undoDelete,
-//           dismissUndo, toggleTask, taskById, classById, liveTasks, and the
-//           checklist edits the task detail screen makes through updateTask)
+//           dismissUndo, toggleTask, taskById, liveTasks, and the checklist
+//           edits the task detail screen makes through updateTask),
+//           PendingUndo from lib/recovery.ts
 //
-//  Summary: Everything that changes an assignment. Each action changes the
-//           store and then saves to the phone straight away, before anything
-//           else can happen, so "Saved on this device" is always true.
+//  Summary: Everything that changes an assignment, plus the Undo bar's two
+//           actions, which since Phase 6b can bring back a deleted class too.
+//           Each action changes the store and then saves to the phone straight
+//           away, so "Saved on this device" is always true.
 //
 
 import Foundation
 
-/// A delete that can still be taken back. `PendingUndo` in lib/recovery.ts,
-/// cut down to assignments for now (Phase 11 widens it to classes, grades and
-/// notes). `at` is when the delete happened; the Undo bar gives up 8 seconds
-/// later, the web's `UNDO_WINDOW_MS`.
-// NEW in Phase 4a
+/// A delete that can still be taken back. `PendingUndo` in lib/recovery.ts.
+/// `at` is when the delete happened; the Undo bar gives up 8 seconds later,
+/// the web's `UNDO_WINDOW_MS`.
+// CHANGED in Phase 6b: `assignmentID` became `item`, which says what kind of
+// thing was deleted as well as which one. `label` and `at` are unchanged, so
+// the Undo bar (Components/UndoBar.swift) didn't need to change at all.
 struct PendingUndo: Equatable {
-    let assignmentID: UUID
-    let label: String          // "Problem Set 4 deleted"
+    /// What was deleted. Each case carries the id of the thing to bring back.
+    /// The web stores a `kind` string plus a list of `ids`; an enum with an
+    /// associated value says the same in one piece, and Swift checks that
+    /// every `switch` over it handles both kinds. Phase 11 adds grades and notes.
+    enum Item: Equatable {
+        case assignment(UUID)
+        case course(UUID)      // the class; its work comes back with it
+    }
+
+    let item: Item
+    let label: String          // "Problem Set 4 deleted", "Biology deleted"
     let at: Date
 }
 
@@ -40,14 +53,7 @@ extension Store {
         liveAssignments.first(where: { $0.id == id })
     }
 
-    /// The live class an assignment is filed under, or nil for Inbox work.
-    /// `classById` in lib/store.tsx. (Phase 5 moves this to Store+Courses.swift.)
-    // NEW in Phase 4a
-    func course(_ id: UUID?) -> Course? {
-        // No class id means Inbox: nothing to look up.
-        guard let id else { return nil }
-        return courses.first(where: { $0.id == id && $0.deletedAt == nil })
-    }
+    // CHANGED in Phase 6b: `course(_:)` moved to Store+Courses.swift.
 
     // MARK: - Adding and editing
 
@@ -151,18 +157,28 @@ extension Store {
 
         // "Problem Set 4 deleted", or "Assignment deleted" for a blank title.
         let title = assignments[index].title.trimmingCharacters(in: .whitespacesAndNewlines)
-        pendingUndo = PendingUndo(assignmentID: id,
+        // CHANGED in Phase 6b: the enum case says it was an assignment.
+        pendingUndo = PendingUndo(item: .assignment(id),
                                   label: "\(title.isEmpty ? "Assignment" : title) deleted",
                                   at: now)
         save()
     }
 
-    /// Brings back the assignment the Undo bar is offering. `undoDelete`.
-    // NEW in Phase 4a
+    /// Brings back whatever the Undo bar is offering. `undoDelete`.
+    // CHANGED in Phase 6b: an assignment or a whole class
     func undoDelete() {
-        guard let undo = pendingUndo,
-              let index = assignments.firstIndex(where: { $0.id == undo.assignmentID }) else { return }
-        assignments[index].deletedAt = nil
+        guard let undo = pendingUndo else { return }
+        // `switch` over the enum. `case .assignment(let id)` matches that
+        // case AND pulls out the id it carries into a new constant, `id`.
+        switch undo.item {
+        case .assignment(let id):
+            if let index = assignments.firstIndex(where: { $0.id == id }) {
+                assignments[index].deletedAt = nil
+            }
+        case .course(let id):
+            // The class and the work that went with it (Store+Courses.swift).
+            restoreCourse(id)
+        }
         pendingUndo = nil
         save()
     }

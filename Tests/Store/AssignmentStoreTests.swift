@@ -89,7 +89,7 @@ import Testing
         #expect(store.assignment(task.id) == nil)
         #expect(Store.load().liveAssignments.isEmpty)
         #expect(store.assignments[0].deletedAt != nil)
-        #expect(store.pendingUndo?.assignmentID == task.id)
+        #expect(store.pendingUndo?.item == .assignment(task.id))
         #expect(store.pendingUndo?.label == "Report deleted")
         store.undoDelete()
         #expect(Store.load().assignment(task.id) == task)

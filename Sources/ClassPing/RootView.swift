@@ -1,6 +1,7 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/RootView.swift
 //  Phase:   3 (app shell), changed in 5a (Profile tab replaces Planner, D-19)
+//           and 6b (Today can switch tabs)
 //  Ports:   components/TabBar.tsx (four tabs with the Add button between them)
 //
 //  Summary: The screen under everything else. A custom bottom bar switches
@@ -34,7 +35,8 @@ struct RootView: View {
         // TabView keeps each screen and its navigation history alive when
         // switching tabs, including the selected day and expanded week.
         TabView(selection: $tab) {
-            NavigationStack { TodayView() }
+            // CHANGED in Phase 6b: Today gets the tab, for "View all".
+            NavigationStack { TodayView(tab: $tab) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.today)
             NavigationStack { NotesView() }

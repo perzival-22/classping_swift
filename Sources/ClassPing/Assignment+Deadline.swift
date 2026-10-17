@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Assignment+Deadline.swift
-//  Phase:   2 (time and deadline logic)
+//  Phase:   2 (time and deadline logic), changed in 6b (Completable)
 //  Ports:   lib/store.tsx (taskDeadline, taskDueAt, byDeadline)
 //
 //  Summary: Teaches the Assignment model to speak the Deadline logic's language.
@@ -14,6 +14,11 @@ import Foundation
 /// protocol with nothing to add. This empty extension just declares that it does,
 /// which lets every function in Deadline.swift accept an Assignment directly.
 extension Assignment: Dated {}
+
+/// The same trick for Logic/Streak.swift: Assignment already has `done`, so
+/// it is `Completable` too, and `termStats` can count real assignments.
+// NEW in Phase 6b
+extension Assignment: Completable {}
 
 extension Assignment {
     /// The assignment's deadline as one value. `taskDeadline(task)` in lib/store.tsx:
