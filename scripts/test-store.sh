@@ -8,7 +8,7 @@ trap 'rm -rf -- "$probe_dir"' EXIT
 cd "$probe_dir"
 swift package init --type library --name CPLogic >/dev/null
 rm Sources/CPLogic/*.swift Tests/CPLogicTests/*.swift
-for source in Models Records Profile Store Store+Persistence Store+Assignments Store+Courses; do
+for source in Models Records Profile Store Store+Persistence Store+Assignments Store+Courses Assignment+Deadline Assignment+TaskView; do
     cp "$project_root/Sources/ClassPing/$source.swift" Sources/CPLogic/
 done
 cp "$project_root"/Sources/ClassPing/Logic/*.swift Sources/CPLogic/
@@ -27,4 +27,5 @@ if text.count(original) != 1:
 replacement = f'URL(fileURLWithPath: "{probe}/Documents")'
 source.write_text(text.replace(original, replacement))
 PY
-swift test
+# Suites share this disposable planner location, so run them one at a time.
+swift test --no-parallel
