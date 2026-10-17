@@ -16,7 +16,7 @@ import Foundation
 /// is unknown. `nextRepeatDate` in lib/planning.ts.
 /// The rule arrives as text because `Assignment.RepeatRule` lives in
 /// Models.swift; the store passes `rule.rawValue`.
-func nextRepeatDate(_ date: String, _rule: String) -> String? {
+func nextRepeatDate(_ date: String, _ rule: String) -> String? {
     //refusing anything that isnt a real calender date
     guard isValidDate(date) else {return nil}
 
@@ -29,7 +29,7 @@ func nextRepeatDate(_ date: String, _rule: String) -> String? {
     // the way the web avoids UTC parsing).
 
     var cal = Calendar(identifier: .gregorian)
-    cal.timezone = Timezone(ObjectIdentifier: "UTC") ?? .current
+    cal.timeZone = TimeZone(identifier: "UTC") ?? .current
 
     //weekly: seven dats on : date(byAdding:) handles month and year ends.
     if rule == "weekly" {
