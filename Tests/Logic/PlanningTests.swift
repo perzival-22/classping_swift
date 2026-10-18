@@ -1,7 +1,7 @@
-// PlanningTests.swift: the Swift twin of the `nextRepeatDate` cases in
-// lib/planning.test.ts (the rest of that file arrives with Phase 6), plus a
-// year rollover and bad input.
-// Run: tools/logic-test.sh. Kelvin does not type this file.
+// PlanningTests.swift: the Swift twin of the `nextRepeatDate`, `localDateKey`
+// and `studyMinutes` cases in lib/planning.test.ts, plus a year rollover and
+// bad input. The plan-normalising cases wait for the code they test (D-31).
+// Run: scripts/test-logic.sh.
 import Foundation
 import Testing
 @testable import CPLogic
@@ -24,4 +24,33 @@ import Testing
         #expect(nextRepeatDate("", "monthly") == nil)
         #expect(nextRepeatDate("2026-09-08", "daily") == nil)
     }
+
+    // MARK: study records (Phase 7b)
+
+    /// `localDateKey` is `dayOf` here: local calendar parts, never UTC.
+    @Test func usesLocalCalendarComponentsInsteadOfUTC() {
+        var c = DateComponents()
+        c.year = 2026; c.month = 9; c.day = 8; c.hour = 23; c.minute = 30
+        #expect(dayOf(Calendar.current.date(from: c)!) == "2026-09-08")
+    }
+
+    @Test func totalsByTaskSubjectAndTimeWindow() {
+        let t1 = UUID(), t2 = UUID(), c1 = UUID()
+        let sessions = [
+            Block(assignmentID: t1, courseID: c1, minutes: 25, completedAt: Date(timeIntervalSince1970: 10)),
+            Block(assignmentID: t1, courseID: c1, minutes: 20, completedAt: Date(timeIntervalSince1970: 20)),
+            Block(assignmentID: t2, courseID: c1, minutes: 15, completedAt: Date(timeIntervalSince1970: 30)),
+        ]
+        #expect(studyMinutes(sessions, taskID: t1) == 45)
+        #expect(studyMinutes(sessions, courseID: c1, since: Date(timeIntervalSince1970: 20)) == 35)
+        #expect(studyMinutes(sessions) == 60)
+    }
+}
+
+/// A stand-in study session.
+private struct Block: StudyRecord {
+    var assignmentID: UUID?
+    var courseID: UUID?
+    var minutes: Int
+    var completedAt: Date
 }

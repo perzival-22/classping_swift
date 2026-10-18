@@ -1,14 +1,16 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Tasks/AssignmentDetailView.swift
-//  Phase:   4b (the Tasks screen)
-//  Ports:   app/tasks/[id]/page.tsx (header, Complete, notes, details, checklist, delete)
+//  Phase:   4b (the Tasks screen), changed in 7b (the planning cards)
+//  Ports:   app/tasks/[id]/page.tsx (header, Complete, notes, details,
+//           exam prep, reminders, Plan the work, checklist, delete)
 //
 //  Summary: One assignment in full: its class, title and deadline, a big
 //           Complete / Mark as open button, the brief, the details, and its
-//           checklist. Edit opens the form in a sheet; Delete moves it to
+//           checklist. Since 7b, while it's open, also its exam prep (for a
+//           dated exam), its reminder controls and the day you plan to work
+//           on it. Edit opens the form in a sheet; Delete moves it to
 //           Recently Deleted and returns to the list, where Undo is offered.
-//           The study timer, day plan, reminder controls, exam prep, grade
-//           prompt and linked notes join in later phases.
+//           The study timer, grade prompt and linked notes join later.
 //
 
 import SwiftUI
@@ -119,13 +121,33 @@ struct AssignmentDetailView: View {
                     detailRow("Type", a.kind.label)
                     Divider()
                     detailRow("Due", a.due == nil ? "No deadline yet" : longDeadline(a.deadline))
+                    // NEW in Phase 7b: minutes recorded against it (the study
+                    // timer, Phase 10, is what records them).
+                    Divider()
+                    let focused = store.focusedMinutes(a.id)
+                    detailRow("Focused", focused > 0 ? "\(focused) min recorded" : "No sessions yet")
                     if let rule = a.repeatRule {
                         Divider()
                         detailRow("Repeats", "\(rule == .weekly ? "Weekly" : "Monthly")"
                                   + (a.repeatUntil.map { " through \($0)" } ?? ""))
                     }
                     Divider()
-                    detailRow("Reminder", reminderSummary(a))
+                    // Keep the summary in step with the card when a snooze expires.
+                    TimelineView(.everyMinute) { context in
+                        detailRow("Reminder", reminderSummary(a, now: context.date))
+                    }
+                }
+
+                // MARK: Planning
+                // NEW in Phase 7b: the three planning cards, in the web's
+                // order, only while the work is still open.
+                if !a.done {
+                    // An undated exam has no week before it to plan (D-32).
+                    if a.kind == .exam && a.due != nil {
+                        ExamPrepCard(assignment: a)
+                    }
+                    TaskReminderCard(assignment: a)
+                    PlanWorkCard(assignment: a, plannedDay: store.taskPlan(for: a.id)?.date)
                 }
 
                 // MARK: Checklist
@@ -251,11 +273,16 @@ struct AssignmentDetailView: View {
         .font(.system(size: 13.5))
     }
 
-    /// What the Reminder row says. The web also names snoozes and lead times;
-    /// those arrive with notifications in Phase 7.
-    private func reminderSummary(_ a: Assignment) -> String {
+    /// What the Reminder row says. It names a snooze first: someone asking
+    /// "why did this go quiet?" is looking right here. `reminderSummary`.
+    // CHANGED in Phase 7b: snoozes and early warnings
+    private func reminderSummary(_ a: Assignment, now: Date) -> String {
         if !a.reminder { return "Off" }
+        if isSnoozed(a.snoozedUntil, now) { return "Snoozed" }
         if a.due == nil { return "On once it has a deadline" }
+        let leads = effectiveLeads(a)
+        // `leads.first` is the longest warning, since they're sorted longest first.
+        if let first = leads.first { return "Nudging, from \(leadLabel(first)) before" }
         return "Nudging until it's done"
     }
 

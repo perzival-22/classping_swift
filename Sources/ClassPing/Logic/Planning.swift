@@ -1,13 +1,19 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Logic/Planning.swift
-//  Phase:   4a (task logic and the add form)
-//  Ports:   lib/planning.ts (`nextRepeatDate` only; Phase 6 ports the rest)
+//  Phase:   4a (task logic and the add form), changed in 7b (study minutes)
+//  Ports:   lib/planning.ts (`nextRepeatDate`, and since 7b `studyMinutes`)
 //
 //  Summary: Works out the next due day of a repeating assignment: a week
 //           later, or the same day next month, clamped to the month's last day
-//           (Jan 31 repeats on Feb 28, or Feb 29 in a leap year).
+//           (Jan 31 repeats on Feb 28, or Feb 29 in a leap year). Since 7b it
+//           also totals the minutes of focused work recorded against a task.
 //
 //  Foundation only, so tools/logic-test.sh can test it on Linux.
+//
+//  Not ported (and why, D-31): `localDateKey` is `dayOf` in Deadline.swift.
+//  `normalizeTaskPlans` and `normalizeStudySessions` repair merged or
+//  restored data, so they arrive with backup restore (Phase 11) and sync
+//  (Phase 14). `plansForDate` and `priorityPlans` have no caller (D-23).
 //
 
 import Foundation
@@ -53,4 +59,35 @@ func nextRepeatDate(_ date: String, _ rule: String) -> String? {
 
     // Any other rule: no next date.
     return nil
+}
+
+// MARK: - Study records
+// NEW in Phase 7b
+
+/// Anything that records one finished block of focused work. `StudySession`
+/// (Records.swift) signs up in Models+Reminders.swift: Logic files can't see
+/// the models, so `studyMinutes` asks for this instead, the same trick as
+/// `Dated` in Phase 2.
+protocol StudyRecord {
+    var assignmentID: UUID? { get }
+    var courseID: UUID? { get }
+    var minutes: Int { get }
+    var completedAt: Date { get }
+}
+
+/// Minutes of focused work in `sessions`, optionally only for one task, one
+/// class, or since a moment. `studyMinutes` in lib/planning.ts. A filter
+/// left as nil lets everything through.
+func studyMinutes<S: StudyRecord>(_ sessions: [S], taskID: UUID? = nil,
+                                  courseID: UUID? = nil, since: Date? = nil) -> Int {
+    sessions
+        .filter { s in
+            // `taskID.map { ... } ?? true` reads: if there is a taskID, does
+            // this session match it? If there's none, it passes.
+            (taskID.map { s.assignmentID == $0 } ?? true)
+                && (courseID.map { s.courseID == $0 } ?? true)
+                && (since.map { s.completedAt >= $0 } ?? true)
+        }
+        // Add up what's left. `reduce` starts at 0 and adds each session's minutes.
+        .reduce(0) { total, s in total + s.minutes }
 }
