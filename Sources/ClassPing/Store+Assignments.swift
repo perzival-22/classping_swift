@@ -1,14 +1,15 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Assignments.swift
 //  Phase:   1 (save and load), rewritten in 4a (every task action),
-//           changed in 6b (Undo covers classes too)
+//           changed in 6b (Undo covers classes too) and 8a (and notes)
 //  Ports:   lib/store.tsx (addTask, updateTask, deleteTask, undoDelete,
 //           dismissUndo, toggleTask, taskById, liveTasks, and the checklist
 //           edits the task detail screen makes through updateTask),
 //           PendingUndo from lib/recovery.ts
 //
 //  Summary: Everything that changes an assignment, plus the Undo bar's two
-//           actions, which since Phase 6b can bring back a deleted class too.
+//           actions, which since Phase 6b can bring back a deleted class too,
+//           and since 8a a deleted note.
 //           Each action changes the store and then saves to the phone straight
 //           away, so "Saved on this device" is always true.
 //
@@ -25,10 +26,11 @@ struct PendingUndo: Equatable {
     /// What was deleted. Each case carries the id of the thing to bring back.
     /// The web stores a `kind` string plus a list of `ids`; an enum with an
     /// associated value says the same in one piece, and Swift checks that
-    /// every `switch` over it handles both kinds. Phase 11 adds grades and notes.
+    /// every `switch` over it handles every kind. Phase 9 adds grades.
     enum Item: Equatable {
         case assignment(UUID)
         case course(UUID)      // the class; its work comes back with it
+        case note(UUID)        // NEW in Phase 8a
     }
 
     let item: Item
@@ -166,6 +168,7 @@ extension Store {
 
     /// Brings back whatever the Undo bar is offering. `undoDelete`.
     // CHANGED in Phase 6b: an assignment or a whole class
+    // CHANGED in Phase 8a: or a note
     func undoDelete() {
         guard let undo = pendingUndo else { return }
         // `switch` over the enum. `case .assignment(let id)` matches that
@@ -178,6 +181,11 @@ extension Store {
         case .course(let id):
             // The class and the work that went with it (Store+Courses.swift).
             restoreCourse(id)
+        case .note(let id):
+            // NEW in Phase 8a: the same as an assignment, one item back.
+            if let index = notes.firstIndex(where: { $0.id == id }) {
+                notes[index].deletedAt = nil
+            }
         }
         pendingUndo = nil
         save()
