@@ -1,11 +1,12 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Tasks/AssignmentFormView.swift
-//  Phase:   4a (task logic and the add form)
+//  Phase:   4a (task logic and the add form), changed in 7c (start on a class)
 //  Ports:   app/tasks/new/page.tsx and app/tasks/[id]/edit/page.tsx (one form, two modes)
 //
 //  Summary: The form for a new assignment, exam or reminder, and for editing
 //           one. Only a title is required: no class means Inbox, no date means
-//           "No deadline", and no time means all-day.
+//           "No deadline", and no time means all-day. Since 7c a new one can
+//           start with its class already picked, as the post-class prompt does.
 //
 
 import SwiftUI
@@ -42,8 +43,11 @@ struct AssignmentFormView: View {
     /// init writes to the underscore version (`_title`), which is the State box
     /// itself, wrapping the value in `State(initialValue:)`.
     /// New work starts like the web form: due in 3 days, all-day, reminder on.
-    init(kind: Assignment.Kind = .assignment, editing: Assignment? = nil,
-         onFinish: (() -> Void)? = nil) {
+    /// CHANGED in Phase 7c: `courseID` is a preset, the class new work starts
+    /// on (the web's `/tasks/new?class=…`). It has a default, nil (Inbox), so
+    /// every existing call still compiles unchanged. An edit ignores it.
+    init(kind: Assignment.Kind = .assignment, courseID: UUID? = nil,
+         editing: Assignment? = nil, onFinish: (() -> Void)? = nil) {
         self.editing = editing
         self.onFinish = onFinish
 
@@ -54,7 +58,8 @@ struct AssignmentFormView: View {
         let storedEnd = editing.flatMap { parseDay($0.repeatUntil) }
 
         _title = State(initialValue: editing?.title ?? "")
-        _courseID = State(initialValue: editing?.courseID)
+        // CHANGED in Phase 7c: an edit keeps its own class; new work takes the preset.
+        _courseID = State(initialValue: editing == nil ? courseID : editing?.courseID)
         _kind = State(initialValue: editing?.kind ?? kind)
         _hasDate = State(initialValue: editing == nil ? true : storedDay != nil)
         _dueDay = State(initialValue: storedDay ?? inThreeDays)

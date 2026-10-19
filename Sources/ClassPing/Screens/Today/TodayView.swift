@@ -1,17 +1,19 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Today/TodayView.swift
 //  Phase:   6b (your work and your classes), after 6a (the picked day),
-//           5a (the week) and 5b (class details)
-//  Ports:   app/home/page.tsx (the greeting, the quote, the picked day's
-//           classes, every "nothing here" message, the term glance, the
-//           assignments and My Classes) and app/week/page.tsx (the week,
-//           folded into Today)
+//           5a (the week) and 5b (class details); changed in 7c (the
+//           just-ended banner)
+//  Ports:   app/home/page.tsx (the greeting, the quote, the just-ended
+//           banner, the picked day's classes, every "nothing here" message,
+//           the term glance, the assignments and My Classes) and
+//           app/week/page.tsx (the week, folded into Today)
 //
 //  Summary: The Today tab. A greeting, then the week: folded, it's a strip of
 //           seven days you can pick from; tap the calendar button (or pull the
 //           handle) and it opens into the full timetable. Below it, the quote
-//           banner, the picked day's classes, and then your term at a glance,
-//           your next assignments and your classes, with Edit and Delete.
+//           banner, a "just finished" banner for half an hour after a class,
+//           the picked day's classes, and then your term at a glance, your
+//           next assignments and your classes, with Edit and Delete.
 //
 
 import SwiftUI
@@ -61,6 +63,9 @@ struct TodayView: View {
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
     /// The sheet currently presented, or nil when none is open.
     @State private var sheet: TodaySheet?
+    /// NEW in Phase 7c: the class whose just-ended banner you closed with ×.
+    /// The web's `promptDismissed`. Only that class: a later one still shows.
+    @State private var dismissedBanner: UUID?
 
     var body: some View {
         // `TimelineView` redraws what's inside it on a schedule. `.everyMinute`
@@ -284,6 +289,14 @@ struct TodayView: View {
         let nowMin = isToday ? minuteOfDay(now) : -1
         let nextName = dayNames[(col + 1) % 7]
 
+        // NEW in Phase 7c: a class that finished in the last half hour gets a
+        // banner asking about homework, above the day's classes. Today only,
+        // inside the term, and not once you've closed it for that class.
+        if isToday && inTerm, let ended = justEnded(courses, now: now),
+           dismissedBanner != ended.course.id {
+            justEndedBanner(ended.course, accent)
+        }
+
         // The classes, one card each. ForEach gives every card its slot's id,
         // which is how each ClassCard keeps its own open/folded state.
         if !dayClasses.isEmpty {
@@ -360,6 +373,62 @@ struct TodayView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// "Calculus III just finished · Did it come with an assignment?", with
+    /// Log it (opens the post-class prompt) and × (hides it for this class).
+    /// The just-ended banner in app/home/page.tsx. NEW in Phase 7c
+    private func justEndedBanner(_ course: Course, _ accent: Profile.Accent) -> some View {
+        HStack(spacing: 12) {
+            Text("✍️")
+                .font(.system(size: 17))
+                .frame(width: 38, height: 38)
+                .background(Theme.brandSoft(accent), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(course.name) just finished")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                Text("Did it come with an assignment?")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(Theme.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Opens the prompt the same way a tapped notification does: by
+            // leaving a route in the store for RootView to take.
+            Button {
+                store.route = .postClass(course.id)
+            } label: {
+                Text("Log it")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Theme.brand(accent), in: Capsule())
+                    // The pill stays small; the tap area is 44 points tall.
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Button {
+                dismissedBanner = course.id
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.hint)
+                    .frame(width: 32, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
+        .background(Theme.brand(accent).opacity(0.07),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(Theme.brand(accent).opacity(0.14), lineWidth: 1))
     }
 
     /// The big emoji tile, a heading and a line of explanation, centred.

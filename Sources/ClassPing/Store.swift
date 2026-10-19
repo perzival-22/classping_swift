@@ -3,7 +3,8 @@
 //  Ports:   lib/store.tsx (the shared state) and the sample week from your designs
 //
 //  Summary: The one place the app's data lives while it runs, plus a sample
-//           store to show until you add your own classes.
+//           store to show until you add your own classes. Since 7c it also
+//           holds where a tapped notification wants to take you.
 //
 
 
@@ -29,6 +30,11 @@ final class Store {
 
     /// The latest assignment or class deletion, available to undo this session.
     var pendingUndo: PendingUndo? = nil
+
+    /// Where the app should go next: set by a tapped notification or by
+    /// Today's "Log it", taken by RootView, which goes there and sets it back
+    /// to nil. Never saved: a tap is about now, not the next launch.
+    var route: AppRoute? = nil           // NEW in Phase 7c
 }
 
 extension Store {

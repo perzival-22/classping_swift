@@ -1,14 +1,17 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/RootView.swift
-//  Phase:   3 (app shell), changed in 5a (Profile tab replaces Planner, D-19)
-//           and 6b (Today can switch tabs)
-//  Ports:   components/TabBar.tsx (four tabs with the Add button between them)
+//  Phase:   3 (app shell), changed in 5a (Profile tab replaces Planner, D-19),
+//           6b (Today can switch tabs) and 7c (going where a tap asks)
+//  Ports:   components/TabBar.tsx (four tabs with the Add button between them),
+//           and openApp() in public/sw.js (a tap opens the right screen)
 //
 //  Summary: The screen under everything else. A custom bottom bar switches
 //           between the four main screens, Today, Notes, Tasks and Profile,
 //           with the brand Add button raised in the middle. The week now lives
 //           inside Today. The whole app is tinted with the chosen accent and
-//           forced to the chosen light/dark mode here.
+//           forced to the chosen light/dark mode here. Since 7c it also takes
+//           the store's route: a task's detail, Today, or the post-class
+//           prompt, which it shows over everything.
 //
 
 import SwiftUI
@@ -27,6 +30,22 @@ struct RootView: View {
     @State private var tab: MainTab = .today
     @State private var addOpen = false
 
+    /// NEW in Phase 7c: what's pushed on the Tasks tab, in code. A
+    /// `NavigationPath` is a navigation stack written as a list: empty is the
+    /// task list itself; one `AssignmentLink` in it is that task's detail on
+    /// top. Tapping a row still adds to it by itself; a tap on a notification
+    /// replaces it.
+    @State private var tasksPath = NavigationPath()
+
+    /// NEW in Phase 7c: whether the post-class prompt is showing, and which
+    /// class it asks about (nil: none just ended, so it says so).
+    @State private var promptOpen = false
+    @State private var promptCourse: Course? = nil
+
+    /// NEW in Phase 7c: the class a new task starts on after "Yes, add it".
+    /// While it's set, the task form is open in a sheet.
+    @State private var addingFor: Course? = nil
+
     var body: some View {
         // Read the accent once; reading it here means the whole screen redraws
         // (new tint, new bar colors) the moment it changes in Profile.
@@ -42,7 +61,8 @@ struct RootView: View {
             NavigationStack { NotesView() }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.notes)
-            NavigationStack { AssignmentsView().navigationTitle("Tasks") }
+            // CHANGED in Phase 7c: `path:` lets a tap open a task's detail.
+            NavigationStack(path: $tasksPath) { AssignmentsView().navigationTitle("Tasks") }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.tasks)
             NavigationStack { ProfileView() }
@@ -62,8 +82,73 @@ struct RootView: View {
         .tint(Theme.brand(accent))
         // Force light or dark to match the profile, overriding the system setting.
         .preferredColorScheme(store.profile.theme == .dark ? .dark : .light)
+        // NEW in Phase 7c: the post-class prompt, over the whole screen, tab
+        // bar included. An overlay, not a sheet: a sheet can't open while
+        // another one is showing, so a tap would get lost; an overlay always
+        // appears, and at worst waits under a sheet you still have open.
+        .overlay {
+            ZStack {
+                if promptOpen {
+                    PostClassPrompt(course: promptCourse,
+                                    onAdd: { course in
+                                        promptOpen = false
+                                        addingFor = course
+                                    },
+                                    onClose: {
+                                        promptOpen = false
+                                        tab = .today
+                                    })
+                        .transition(.opacity)
+                }
+            }
+            // Fade the prompt in and out instead of popping. On the ZStack,
+            // so only the prompt animates, not the tab switch behind it.
+            .animation(.easeOut(duration: 0.2), value: promptOpen)
+        }
         // The Add button opens this sheet.
         .sheet(isPresented: $addOpen) { AddMenu() }
+        // NEW in Phase 7c: "Yes, add it" opens the task form on that class.
+        // `sheet(item:)` shows it while `addingFor` is set and clears it on close.
+        .sheet(item: $addingFor) { course in
+            NavigationStack {
+                AssignmentFormView(courseID: course.id, onFinish: { addingFor = nil })
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { addingFor = nil }
+                        }
+                    }
+            }
+        }
+        // NEW in Phase 7c: go where a tapped notification or "Log it" asked.
+        // `initial: true` also runs this when the screen first appears, for a
+        // tap that launched the app before this screen existed.
+        .onChange(of: store.route, initial: true) { _, route in
+            guard let route else { return }
+            go(route)
+            // Taken. Back to nil, so the same request again still counts as a change.
+            store.route = nil
+        }
+    }
+
+    /// Opens the screen a route names. NEW in Phase 7c. Nothing you have open
+    /// is closed: if a sheet is showing, the screen waits underneath it.
+    private func go(_ route: AppRoute) {
+        switch route {
+        case .today:
+            tab = .today
+        case .task(let id):
+            tab = .tasks
+            // The list with that task's detail on top, or just the list if
+            // the task was deleted since the notification was planned.
+            tasksPath = store.assignment(id) == nil
+                ? NavigationPath()
+                : NavigationPath([AssignmentLink(id: id)])
+        case .postClass(let id):
+            // The class the notification names, which stays right even if
+            // you tap it an hour later; else whichever class just ended.
+            promptCourse = store.course(id) ?? justEnded(store.activeCourses, now: .now)?.course
+            promptOpen = true
+        }
     }
 }
 
