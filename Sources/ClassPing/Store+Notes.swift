@@ -1,14 +1,19 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Notes.swift
 //  Phase:   8a (notes you can write and find), changed in 8c (tidy saves)
+//           and 8d (notes linked to a task, a task from a note)
 //  Ports:   lib/store.tsx (liveNotes, notesForClass, addNote, updateNote,
 //           deleteNote, noteById) and, from app/classes/page.tsx, the note
-//           counts, the search and today's note for a class that's on
+//           counts, the search and today's note for a class that's on.
+//           Since 8d, from app/tasks/[id]/page.tsx, `linkedNotes`,
+//           `linkableNotes` and `updateNote(id, { taskId })`, and from
+//           app/classes/page.tsx, what QuickTaskCard's `save` files
 //
 //  Summary: Everything that reads or changes a note. A note belongs to a
 //           class, or to none (a quick note), and to the day it was taken.
 //           Each change saves to the phone straight away, and a delete can
-//           be undone, like an assignment's.
+//           be undone, like an assignment's. Since 8d a note can also be
+//           linked to one task, and a task can be filed from a note.
 //
 
 import Foundation
@@ -125,5 +130,69 @@ extension Store {
                                   label: "\(title.isEmpty ? "Note" : title) deleted",
                                   at: now)
         save()
+    }
+
+    // MARK: - Notes and tasks (NEW in Phase 8d)
+
+    /// The notes linked to a task, in the order they were made (the order
+    /// the store keeps them in, as on the web). `linkedNotes` in
+    /// app/tasks/[id]/page.tsx.
+    func linkedNotes(for assignmentID: UUID) -> [Note] {
+        liveNotes.filter { $0.assignmentID == assignmentID }
+    }
+
+    /// The notes "Link an existing note" offers for a task: those not linked
+    /// to any task yet, from the task's class. An Inbox task has no class, so
+    /// any unlinked note will do. `linkableNotes`.
+    func linkableNotes(for assignment: Assignment) -> [Note] {
+        liveNotes.filter { n in
+            n.assignmentID == nil
+                && (assignment.courseID == nil || n.courseID == assignment.courseID)
+        }
+    }
+
+    /// Links a note to a task, or unlinks it when `assignmentID` is nil.
+    /// `updateNote(id, { taskId })` on the web: like any edit it moves the
+    /// note's `updatedAt`, and a link that's already there writes nothing.
+    func linkNote(_ id: UUID, to assignmentID: UUID?) {
+        guard let i = notes.firstIndex(where: { $0.id == id && $0.deletedAt == nil }),
+              notes[i].assignmentID != assignmentID else { return }
+        notes[i].assignmentID = assignmentID
+        notes[i].updatedAt = .now
+        save()
+    }
+
+    /// Files a reminder or an assignment from a note's quick card, for the
+    /// note's class (nil for a quick note, so it lands in the Inbox).
+    /// QuickTaskCard's `save`: the day the card shows, a time only when one
+    /// was set, the daily reminder on, and a title even when none was typed
+    /// ("Chemistry quiz", Logic/QuickTask.swift). Nil, with nothing filed,
+    /// when the card couldn't be saved (a reminder with no words); otherwise
+    /// the new task's id.
+    @discardableResult
+    func addQuickTask(_ mode: QuickTaskMode, title: String, type: QuickTaskType,
+                      courseID: UUID?, due: String, dueTime: String?) -> UUID? {
+        guard quickTaskCanSave(mode, title: title) else { return nil }
+
+        // The class's name for a blank title; the note's header says "Quick
+        // note" for a note with no class, and so does the made-up title.
+        let className = course(courseID)?.name ?? "Quick note"
+
+        // The three types are three of Assignment's kinds. A `switch` as a
+        // value (8c): one kind per case, and Swift checks none is missing.
+        let kind: Assignment.Kind = switch type {
+        case .assignment: .assignment
+        case .quiz: .quiz
+        case .exam: .exam
+        }
+
+        let task = Assignment(courseID: courseID,
+                              title: quickTaskTitle(mode, title: title, className: className, type: type),
+                              due: due,
+                              dueTime: dueTime,
+                              kind: mode == .reminder ? .reminder : kind,
+                              reminder: true)
+        addAssignment(task)
+        return task.id
     }
 }

@@ -1,13 +1,14 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Notes/NoteView.swift
-//  Phase:   8a (notes you can write and find), changed in 8b (read first)
-//           and 8c (the formatting bar and tidy)
+//  Phase:   8a (notes you can write and find), changed in 8b (read first),
+//           8c (the formatting bar and tidy) and 8d (a task from a note)
 //  Ports:   NotePane in app/classes/page.tsx (the title, "class · day", the
 //           bin), the saving half of components/NoteEditor.tsx (save half
 //           a second after you stop typing, "Saving…" / "Saved", the 20,000
 //           character limit and New page), since 8b the phone's view of a
-//           note, components/NoteReader.tsx, and since 8c the Tidy note
-//           button and its Undo (components/NoteTidyButton.tsx)
+//           note, components/NoteReader.tsx, since 8c the Tidy note
+//           button and its Undo (components/NoteTidyButton.tsx), and since
+//           8d NotePane's bell and plus, which open its QuickTaskCard
 //
 //  Summary: One note. A note with words in it opens to read, drawn by
 //           NoteReaderView, with Tidy note above it; Edit switches to typing
@@ -15,6 +16,8 @@
 //           and Done goes back to reading (D-37). An empty note opens
 //           straight for typing. Typing saves by itself a moment after you
 //           stop, when you leave, and when the app goes to the background.
+//           Reading or typing, the bell and plus file a reminder or an
+//           assignment for the note's class without leaving it.
 //
 
 import SwiftUI
@@ -40,6 +43,10 @@ struct NoteView: View {
     /// after that and it's gone, as on the web.
     @State private var undoTidy: (original: String, applied: String)? = nil
 
+    /// NEW in Phase 8d: the quick card that's open, the bell's or the plus's,
+    /// or nil for none. `.sheet(item:)` below shows it while this is set.
+    @State private var quick: QuickTaskMode? = nil
+
     var body: some View {
         if let note = store.note(noteID) {
             // CHANGED in Phase 8b: reading or typing.
@@ -52,6 +59,24 @@ struct NoteView: View {
                 }
             }
             .toolbar {
+                // NEW in Phase 8d: file work for this note's class without
+                // leaving it, a reminder (the bell) or an assignment (the
+                // plus), the web's two header buttons. On this outer Group,
+                // so they're there whether you're reading or typing.
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        quick = .reminder
+                    } label: {
+                        Image(systemName: "bell")
+                    }
+                    .accessibilityLabel("Add reminder")
+                    Button {
+                        quick = .assignment
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add assignment")
+                }
                 // The editor owns Done so it can flush its draft before the
                 // reader appears, and retain the draft if saving fails.
                 if !typing {
@@ -60,6 +85,12 @@ struct NoteView: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                 }
+            }
+            // NEW in Phase 8d: the quick card, for the note's class. It
+            // slides up over the note, and the editor stays underneath,
+            // still saving what you typed.
+            .sheet(item: $quick) { mode in
+                QuickTaskSheet(mode: mode, courseID: note.courseID)
             }
             .onAppear {
                 if editing == nil { editing = typing }

@@ -261,4 +261,137 @@ import Testing
         store.undoDelete()
         #expect(Store.load().note(id)?.body == "Kept")
     }
+    // MARK: - Phase 8d: notes linked to a task, and a task from a note
+
+    /// Two classes and a task in the first, saved, for the link tests.
+    private func bioChemAndALab(_ store: Store) -> (bio: Course, chem: Course, lab: Assignment) {
+        let bio = Course(name: "Biology", short: "Bio", color: .teal, days: [0], startMin: 600, endMin: 660)
+        let chem = Course(name: "Chemistry", short: "Chem", color: .ocean, days: [1], startMin: 600, endMin: 660)
+        store.addCourse(bio)
+        store.addCourse(chem)
+        let lab = Assignment(courseID: bio.id, title: "Lab report", due: "2026-10-23")
+        store.addAssignment(lab)
+        return (bio, chem, lab)
+    }
+
+    @Test func linkingAndUnlinkingANoteSurvivesAReload() {
+        let store = freshStore()
+        let (bio, _, lab) = bioChemAndALab(store)
+        let id = store.addNote(courseID: bio.id, date: "2026-10-19")
+        store.linkNote(id, to: lab.id)
+        #expect(store.linkedNotes(for: lab.id).map(\.id) == [id])
+        #expect(Store.load().note(id)?.assignmentID == lab.id)
+
+        store.linkNote(id, to: nil)
+        #expect(store.linkedNotes(for: lab.id).isEmpty)
+        let loaded = Store.load()
+        #expect(loaded.note(id)?.assignmentID == nil)
+        // Unlinking keeps the note itself.
+        #expect(loaded.note(id)?.courseID == bio.id)
+    }
+
+    @Test func aLinkMovesTheNoteStampButTheSameLinkAgainWritesNothing() {
+        let store = freshStore()
+        let (bio, _, lab) = bioChemAndALab(store)
+        let id = store.addNote(courseID: bio.id, date: "2026-10-19")
+        let made = store.note(id)?.updatedAt ?? .distantFuture
+        store.linkNote(id, to: lab.id)
+        let linked = store.note(id)?.updatedAt ?? .distantPast
+        #expect(linked >= made)
+
+        // A fixed file date shows whether the planner was written again.
+        let fileStamp = Date(timeIntervalSince1970: 1_700_000_000)
+        try? FileManager.default.setAttributes([.modificationDate: fileStamp],
+                                               ofItemAtPath: Store.fileURL.path)
+        store.linkNote(id, to: lab.id)
+        #expect(store.note(id)?.updatedAt == linked)
+        let attributes = try? FileManager.default.attributesOfItem(atPath: Store.fileURL.path)
+        #expect(attributes?[.modificationDate] as? Date == fileStamp)
+    }
+
+    @Test func linkableNotesAreUnlinkedOnesFromTheTasksClass() {
+        let store = freshStore()
+        let (bio, chem, lab) = bioChemAndALab(store)
+        let other = Assignment(courseID: bio.id, title: "Reading", due: "2026-10-24")
+        store.addAssignment(other)
+        let free = store.addNote(courseID: bio.id, date: "2026-10-19")
+        let taken = store.addNote(courseID: bio.id, date: "2026-10-19", assignmentID: other.id)
+        let chemNote = store.addNote(courseID: chem.id, date: "2026-10-19")
+        let quick = store.addNote(courseID: nil, date: "2026-10-19")
+        let gone = store.addNote(courseID: bio.id, date: "2026-10-19")
+        store.deleteNote(gone)
+
+        // A class's task: that class's unlinked notes only.
+        #expect(store.linkableNotes(for: lab).map(\.id) == [free])
+        // An Inbox task: any unlinked note, in the order they were made.
+        let inbox = Assignment(title: "Email advisor")
+        store.addAssignment(inbox)
+        #expect(store.linkableNotes(for: inbox).map(\.id) == [free, chemNote, quick])
+        // The taken one shows on its own task instead.
+        #expect(store.linkedNotes(for: other.id).map(\.id) == [taken])
+    }
+
+    @Test func aDeletedLinkedNoteLeavesTheTaskAndComesBackWithUndo() {
+        let store = freshStore()
+        let (bio, _, lab) = bioChemAndALab(store)
+        let id = store.addNote(courseID: bio.id, date: "2026-10-19", assignmentID: lab.id)
+        store.deleteNote(id)
+        #expect(store.linkedNotes(for: lab.id).isEmpty)
+        store.undoDelete()
+        #expect(store.linkedNotes(for: lab.id).map(\.id) == [id])
+    }
+
+    @Test func deletingATaskKeepsItsLinksSoUndoBringsThemBack() {
+        let store = freshStore()
+        let (bio, _, lab) = bioChemAndALab(store)
+        let id = store.addNote(courseID: bio.id, date: "2026-10-19", assignmentID: lab.id)
+        store.deleteAssignment(lab.id)
+        // The note stays, still pointing at the task, as on the web.
+        #expect(store.note(id)?.assignmentID == lab.id)
+        store.undoDelete()
+        #expect(Store.load().linkedNotes(for: lab.id).map(\.id) == [id])
+    }
+
+    @Test func aQuickAssignmentIsFiledForTheNotesClass() {
+        let store = freshStore()
+        let (_, chem, _) = bioChemAndALab(store)
+        let id = store.addQuickTask(.assignment, title: "", type: .quiz, courseID: chem.id,
+                                    due: "2026-10-22", dueTime: nil)
+        #expect(id != nil)
+        let filed = Store.load().assignment(id ?? UUID())
+        #expect(filed?.title == "Chemistry quiz")
+        #expect(filed?.kind == .quiz)
+        #expect(filed?.courseID == chem.id)
+        #expect(filed?.due == "2026-10-22")
+        #expect(filed?.dueTime == nil)
+        #expect(filed?.reminder == true)
+        #expect(filed?.done == false)
+    }
+
+    @Test func aQuickReminderNeedsWordsAndKeepsItsTime() {
+        let store = freshStore()
+        let (bio, _, _) = bioChemAndALab(store)
+        let before = store.liveAssignments.count
+        // Blank: nothing filed. The type is ignored for a reminder.
+        #expect(store.addQuickTask(.reminder, title: "  ", type: .exam, courseID: bio.id,
+                                   due: "2026-10-20", dueTime: nil) == nil)
+        #expect(store.liveAssignments.count == before)
+
+        let id = store.addQuickTask(.reminder, title: " Bring goggles ", type: .exam,
+                                    courseID: bio.id, due: "2026-10-20", dueTime: "08:30")
+        let filed = Store.load().assignment(id ?? UUID())
+        #expect(filed?.title == "Bring goggles")
+        #expect(filed?.kind == .reminder)
+        #expect(filed?.dueTime == "08:30")
+        #expect(filed?.reminder == true)
+    }
+
+    @Test func aQuickTaskFromAQuickNoteGoesToTheInbox() {
+        let store = freshStore()
+        let id = store.addQuickTask(.assignment, title: "", type: .exam, courseID: nil,
+                                    due: "2026-10-22", dueTime: nil)
+        let filed = store.assignment(id ?? UUID())
+        #expect(filed?.courseID == nil)
+        #expect(filed?.title == "Quick note exam")
+    }
 }

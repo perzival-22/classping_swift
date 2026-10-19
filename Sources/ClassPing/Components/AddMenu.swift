@@ -1,13 +1,15 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Components/AddMenu.swift
 //  Phase:   3 (app shell), changed in 4a (the first three rows open the
-//           task form) and 5b (Class opens the class form)
+//           task form), 5b (Class opens the class form) and 8d (Note opens
+//           the Notes tab)
 //  Ports:   components/AddMenu.tsx (the five labelled choices)
 //
 //  Summary: The sheet the Add button opens: the five things you can add, named,
 //           in the same order as the web app. Assignment, Exam and Reminder
-//           slide in the task form, Class slides in the class form; Note still
-//           just closes (Phase 8).
+//           slide in the task form, Class slides in the class form, and Note
+//           closes the sheet and goes to your notes, as the web's goes to
+//           /classes.
 //
 
 import SwiftUI
@@ -25,6 +27,11 @@ struct AddMenu: View {
     /// How tall the sheet is. Starts at half height; jumps to full when a
     /// form slides in, because a form needs the room.
     @State private var detent: PresentationDetent = .medium   // NEW in Phase 4a
+
+    /// NEW in Phase 8d: RootView's selected tab, borrowed, so Note can switch
+    /// to Notes. A `@Binding`, as Today got in 6b for "View all": the tab
+    /// still belongs to RootView, and writing it here changes it there.
+    @Binding var tab: MainTab
 
     /// One choice in the menu. `symbol` is an SF Symbol name (the native icon set
     /// that replaces components/icons.tsx). `kind` is set for the three rows
@@ -63,9 +70,12 @@ struct AddMenu: View {
                         label(for: opt)
                     }
                 } else {
-                    // Note (Phase 8) still just closes the menu.
+                    // CHANGED in Phase 8d: Note (the only row left with no
+                    // kind or class) closes the menu and opens the Notes tab,
+                    // where the web's Note goes (/classes), as it was left.
                     Button {
                         dismiss()
+                        tab = .notes
                     } label: {
                         label(for: opt)
                     }

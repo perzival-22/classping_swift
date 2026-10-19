@@ -1,7 +1,9 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/RootView.swift
 //  Phase:   3 (app shell), changed in 5a (Profile tab replaces Planner, D-19),
-//           6b (Today can switch tabs) and 7c (going where a tap asks)
+//           6b (Today can switch tabs), 7c (going where a tap asks),
+//           after 8c (the bar steps aside for the keyboard, D-43) and in
+//           8d (the Add menu can switch tabs too, for Note)
 //  Ports:   components/TabBar.tsx (four tabs with the Add button between them),
 //           and openApp() in public/sw.js (a tap opens the right screen)
 //
@@ -123,7 +125,8 @@ struct RootView: View {
             .animation(.easeOut(duration: 0.2), value: promptOpen)
         }
         // The Add button opens this sheet.
-        .sheet(isPresented: $addOpen) { AddMenu() }
+        // CHANGED in Phase 8d: with the tab, so Note can switch to Notes.
+        .sheet(isPresented: $addOpen) { AddMenu(tab: $tab) }
         // NEW in Phase 7c: "Yes, add it" opens the task form on that class.
         // `sheet(item:)` shows it while `addingFor` is set and clears it on close.
         .sheet(item: $addingFor) { course in

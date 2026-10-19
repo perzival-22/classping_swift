@@ -1,16 +1,20 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Tasks/AssignmentDetailView.swift
-//  Phase:   4b (the Tasks screen), changed in 7b (the planning cards)
+//  Phase:   4b (the Tasks screen), changed in 7b (the planning cards) and
+//           8d (linked notes, and Open the class)
 //  Ports:   app/tasks/[id]/page.tsx (header, Complete, notes, details,
-//           exam prep, reminders, Plan the work, checklist, delete)
+//           exam prep, reminders, Plan the work, checklist, linked notes,
+//           Open the class, delete)
 //
 //  Summary: One assignment in full: its class, title and deadline, a big
 //           Complete / Mark as open button, the brief, the details, and its
 //           checklist. Since 7b, while it's open, also its exam prep (for a
 //           dated exam), its reminder controls and the day you plan to work
-//           on it. Edit opens the form in a sheet; Delete moves it to
-//           Recently Deleted and returns to the list, where Undo is offered.
-//           The study timer, grade prompt and linked notes join later.
+//           on it. Since 8d, the notes linked to it (open, unlink, link one
+//           more or start a new one) and a row that opens its class's notes.
+//           Edit opens the form in a sheet; Delete moves it to Recently
+//           Deleted and returns to the list, where Undo is offered. The
+//           study timer and grade prompt join later.
 //
 
 import SwiftUI
@@ -30,6 +34,10 @@ struct AssignmentDetailView: View {
 
     /// What's typed in the "Add a smaller step" field.
     @State private var newStep = ""
+
+    /// NEW in Phase 8d: the note New note just started, while it's open
+    /// (the Notes tab's `startedNote`, 8a).
+    @State private var startedNote: UUID?
 
     var body: some View {
         // Gone (just deleted, or never existed): a short note instead of a crash.
@@ -201,6 +209,36 @@ struct AssignmentDetailView: View {
                     }
                 }
 
+                // MARK: Linked notes
+                // NEW in Phase 8d: the notes about this work, then a way to
+                // link one more or start one. Always shown, done or not, as
+                // on the web.
+                linkedNotesCard(a)
+
+                // NEW in Phase 8d: the class's notes, one tap away. Only for
+                // work that has a class; the Inbox has no notes page.
+                if let course {
+                    NavigationLink(value: CourseNotesLink(id: course.id)) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "book")
+                                .font(.system(size: 15))
+                                .foregroundStyle(Theme.muted)
+                            Text("Open \(course.name)")
+                                .font(.system(size: 14.5, weight: .medium))
+                                .foregroundStyle(Theme.ink)
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Theme.hint)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 15)
+                        .cardStyle()
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 // MARK: Delete
                 // One tap, as on the web detail page: it's a soft delete, Undo
                 // shows on the list, and nothing is erased.
@@ -242,6 +280,24 @@ struct AssignmentDetailView: View {
                     }
             }
         }
+        // NEW in Phase 8d: where the note links lead. This screen is pushed
+        // on the Tasks tab and on Today, whose stacks don't know about notes,
+        // so it registers the two note screens itself. A destination works
+        // for the whole stack while the screen that registered it is in it,
+        // so a class's notes opened from here can open their notes too.
+        .navigationDestination(for: NoteLink.self) { link in
+            NoteView(noteID: link.id)
+        }
+        .navigationDestination(for: CourseNotesLink.self) { link in
+            CourseNotesView(courseID: link.id)
+        }
+        // And New note: open the note it just started.
+        .navigationDestination(item: $startedNote) { id in
+            NoteView(noteID: id)
+        }
+        // NEW in Phase 8d: a linked note deleted from its own screen comes
+        // back to here, so Undo waits here, as on the Notes tab.
+        .undoBar()
     }
 
     // MARK: - Pieces
@@ -290,5 +346,94 @@ struct AssignmentDetailView: View {
     private func addStep(to id: UUID) {
         store.addSubtask(newStep, to: id)
         newStep = ""
+    }
+
+    /// NEW in Phase 8d: the Linked notes card. Each linked note opens on
+    /// tap, with Unlink beside it (which only takes the link away, the note
+    /// stays). Under them, a menu of the notes that could be linked, and New
+    /// note, which starts one for this work's class, linked from the start.
+    /// The "Linked notes" section of app/tasks/[id]/page.tsx.
+    private func linkedNotesCard(_ a: Assignment) -> some View {
+        let accent = store.profile.accent
+        let linked = store.linkedNotes(for: a.id)
+        let linkable = store.linkableNotes(for: a)
+
+        return card {
+            sectionLabel("Linked notes")
+
+            // One row per linked note: the note, then Unlink. Side by side,
+            // not one inside the other, so Unlink can't also open the note.
+            ForEach(linked) { note in
+                let title = noteTitle(title: note.title, body: note.body)
+                HStack(spacing: 0) {
+                    NavigationLink(value: NoteLink(id: note.id)) {
+                        Text(title)
+                            .font(.system(size: 13.5, weight: .medium))
+                            .foregroundStyle(Theme.ink)
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    Button("Unlink") {
+                        store.linkNote(note.id, to: nil)
+                    }
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    // "Unlink Week 3", the web's label, so VoiceOver says which.
+                    .accessibilityLabel("Unlink \(title)")
+                }
+                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+
+            HStack(spacing: 8) {
+                // A `Menu` (8c) whose buttons come from the data: one per
+                // note that could be linked. Picking one links it, and it
+                // moves up into the list above. Greyed out when none could.
+                Menu {
+                    ForEach(linkable) { note in
+                        Button(noteTitle(title: note.title, body: note.body)) {
+                            store.linkNote(note.id, to: a.id)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text("Link an existing note")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.ink)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.muted)
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 40)
+                    .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .disabled(linkable.isEmpty)
+                .opacity(linkable.isEmpty ? 0.5 : 1)
+
+                // Today's date, this work's class (none for the Inbox, which
+                // makes a quick note) and the link, then straight into it.
+                Button {
+                    startedNote = store.addNote(courseID: a.courseID, date: dayOf(.now),
+                                                assignmentID: a.id)
+                } label: {
+                    Text("New note")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.brand(accent))
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 40)
+                        .background(Theme.brandSoft(accent),
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
