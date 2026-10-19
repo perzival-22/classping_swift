@@ -46,6 +46,11 @@ struct RootView: View {
     /// While it's set, the task form is open in a sheet.
     @State private var addingFor: Course? = nil
 
+    /// NEW after Phase 8c (D-43): true while the keyboard is on screen. The
+    /// bar steps aside then, so nothing that sits on the keyboard (the note's
+    /// formatting bar, the end of a search's results) is hidden behind it.
+    @State private var keyboardUp = false
+
     var body: some View {
         // Read the accent once; reading it here means the whole screen redraws
         // (new tint, new bar colors) the moment it changes in Profile.
@@ -72,9 +77,21 @@ struct RootView: View {
         // `safeAreaInset` pins the bar to the bottom and insets the screen above
         // it, so a list never scrolls underneath the bar.
         .safeAreaInset(edge: .bottom) {
-            // CHANGED in Phase 5a: the bar also needs your name for the avatar.
-            MainTabBar(tab: $tab, addOpen: $addOpen, accent: accent,
-                       name: store.profile.username)
+            // CHANGED after Phase 8c (D-43): gone while the keyboard is up.
+            if !keyboardUp {
+                MainTabBar(tab: $tab, addOpen: $addOpen, accent: accent,
+                           name: store.profile.username)
+            }
+        }
+        // NEW after Phase 8c (D-43): iOS announces the keyboard coming and going.
+        // `onReceive` runs its closure each time one of those arrives.
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardUp = true
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardUp = false
         }
         // The warm ground behind everything, including under the bar.
         .background(Theme.canvas.ignoresSafeArea())
