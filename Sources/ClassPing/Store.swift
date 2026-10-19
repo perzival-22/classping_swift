@@ -38,6 +38,15 @@ final class Store {
 }
 
 extension Store {
+    /// A launch or background tap waits for the screen to become active.
+    /// Clear only a consumed route, so tapping the same reminder works again.
+    func takeRoute(whenActive isActive: Bool) -> AppRoute? {
+        guard isActive, let route else { return nil }
+        self.route = nil
+        return route
+    }
+
+
     /// A store filled with the classes and assignments from your design screens 02 and 06.
     /// The app uses it until you add your own. End times are made up.
     static var sample: Store {

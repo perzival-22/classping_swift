@@ -12,35 +12,15 @@
 //           tap on one tells the store where to go.
 //
 import SwiftUI
-import UserNotifications   // NEW in Phase 7a
+import UIKit
+import UserNotifications
 
 /// @main marks where the app starts, similar to the root layout in the web app
 @main
 struct ClassPingApp: App {
-    /// The app's single store. `@State` keeps the same Store alive for as long as
-    /// the app runs, instead of making a new one every time SwiftUI redraws.
-    // CHANGED in Phase 1: load what's saved on the phone instead of always the sample.
-    // CHANGED in Phase 7c: loaded in `init`, so the delegate can share it.
-    @State private var store: Store
-
-    /// NEW in Phase 7a: the object iOS calls about notifications: before
-    /// showing one while the app is open, and (since 7c) when you tap one.
-    /// iOS only holds on to it weakly (it won't keep it alive by itself), so
-    /// the app keeps it here for as long as it runs.
-    // CHANGED in Phase 7c: made in `init`, with the store.
-    private let notificationDelegate: NotificationDelegate
-
-    /// NEW in Phase 7a: runs once, as the app starts, so the delegate is in
-    /// place before any notification can arrive. iOS needs it set before the
-    /// app finishes launching, or a tap that launched the app would be lost.
-    // CHANGED in Phase 7c: loads the store here and hands the delegate the
-    // same one. `_store` is the State box itself (as in 4a's form init).
-    init() {
-        let loaded = Store.load()
-        _store = State(initialValue: loaded)
-        notificationDelegate = NotificationDelegate(store: loaded)
-        UNUserNotificationCenter.current().delegate = notificationDelegate
-    }
+    /// UIKit retains the launch delegate for the app's lifetime. It owns the
+    /// same store that receives notification taps and drives every screen.
+    @UIApplicationDelegateAdaptor(ClassPingAppDelegate.self) private var appDelegate
 
     var body: some Scene {
         WindowGroup {
@@ -52,7 +32,7 @@ struct ClassPingApp: App {
             // it can read the store too.
             RootView()
                 .modifier(ReminderSync())
-                .environment(store)
+                .environment(appDelegate.store)
         }
     }
 }
@@ -102,51 +82,53 @@ private struct ReminderSync: ViewModifier {
     }
 }
 
-/// Lets reminders show while ClassPing is open, and (since 7c) opens the
-/// right screen when you tap one. Without it, iOS stays silent about a
-/// notification that arrives while you're in the app (the web shows them
-/// while it's open, the only time it can). A delegate is an object iOS calls
-/// back with "this is happening, what should I do?". `NSObject` is the base
-/// class Apple's older callback-based frameworks expect.
-// NEW in Phase 7a
+/// Registers notifications in UIKit's launch lifecycle, before iOS delivers
+/// the response that opened the app. The adaptor keeps this object alive.
+@MainActor
+final class ClassPingAppDelegate: NSObject, UIApplicationDelegate {
+    /// One loaded store, shared by notification handling and SwiftUI.
+    let store = Store.load()
+    private lazy var notificationDelegate = NotificationDelegate(store: store)
+
+    /// Register before launch finishes, including launches from a notification.
+    func application(_ application: UIApplication,
+                     willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+        return true
+    }
+}
+
+/// Receives iOS callbacks on their notification queue. Read the payload there;
+/// only the parsed route crosses to the main actor that owns the store.
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
-    /// NEW in Phase 7c: the app's store, where a tap leaves its route. A `let`,
-    /// set once. The store is `@MainActor`, so holding it from here is safe;
-    /// changing it means going over to the main actor first (below).
+    /// The launch delegate's store; never create a second store for a tap.
     let store: Store
 
-    /// NEW in Phase 7c
     init(store: Store) {
         self.store = store
     }
 
-    /// A notification is arriving with the app on screen: show it anyway, as
-    /// a banner with its sound, and keep it in Notification Center.
+    /// Keep banners visible while ClassPing is already on screen.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification)
-        async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
     }
 
-    /// NEW in Phase 7c: you tapped a notification, on the lock screen, in
-    /// Notification Center or as a banner. If the app was closed, iOS opens
-    /// it first, then calls this. The web's `notificationclick` in sw.js.
+    /// Finish every response, including ignored actions. A default tap queues
+    /// its route until RootView is active, even if the screen doesn't exist yet.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                didReceive response: UNNotificationResponse) async {
-        // Only a plain tap opens a screen. (Other answers, like dismissing,
-        // only arrive here if an app asks for them; ClassPing doesn't.)
-        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
-        // Where to go, read from what 7a attached (Logic/PostClass.swift).
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping @Sendable () -> Void) {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
+            completionHandler()
+            return
+        }
         let destination = notificationRoute(response.notification.request.content.userInfo)
-
-        // This method doesn't run on the main actor, and the store lives
-        // there. `MainActor.run` hops over, runs the closure, and comes back
-        // (`await` waits for it). The closure may only take along values that
-        // are safe to send between actors: the store and the route are, `self`
-        // (a plain NSObject) isn't, so the store is copied into a local first.
         let store = self.store
-        await MainActor.run {
+        Task { @MainActor in
             store.route = destination
+            completionHandler()
         }
     }
 }

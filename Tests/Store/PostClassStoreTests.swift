@@ -6,6 +6,48 @@ import Testing
 
 @MainActor
 @Suite(.serialized) struct PostClassStoreTests {
+    @Test func launchAndBackgroundTapsWaitForAnActiveScreen() {
+        let store = Store()
+        let courseID = UUID()
+        // iOS can deliver the response before the first screen is ready.
+        store.route = notificationRoute(["kind": "post-class", "course": courseID.uuidString])
+        #expect(store.takeRoute(whenActive: false) == nil)
+        #expect(store.route == .postClass(courseID))
+        #expect(store.takeRoute(whenActive: true) == .postClass(courseID))
+        #expect(store.route == nil)
+        #expect(store.takeRoute(whenActive: true) == nil)
+
+        // An existing background scene also waits, then opens Today once.
+        store.route = notificationRoute(["kind": "class", "course": courseID.uuidString])
+        #expect(store.takeRoute(whenActive: false) == nil)
+        #expect(store.route == .today)
+        #expect(store.takeRoute(whenActive: true) == .today)
+
+        // The same destination remains usable after the previous tap.
+        store.route = notificationRoute(["kind": "class", "course": courseID.uuidString])
+        #expect(store.takeRoute(whenActive: true) == .today)
+
+        // Repeated after-class taps must open the question each time too.
+        for _ in 0..<2 {
+            store.route = notificationRoute(["kind": "post-class", "course": courseID.uuidString])
+            #expect(store.takeRoute(whenActive: true) == .postClass(courseID))
+            #expect(store.route == nil)
+        }
+    }
+
+    @Test func theLatestTapBeforeActivationDeterminesTheDestination() {
+        let store = Store()
+        let courseID = UUID()
+        let taskID = UUID()
+        store.route = notificationRoute(["kind": "task-nag", "assignment": taskID.uuidString])
+        #expect(store.takeRoute(whenActive: false) == nil)
+
+        store.route = notificationRoute(["kind": "post-class", "course": courseID.uuidString])
+        #expect(store.takeRoute(whenActive: false) == nil)
+        #expect(store.takeRoute(whenActive: true) == .postClass(courseID))
+        #expect(store.takeRoute(whenActive: true) == nil)
+    }
+
     @Test func aNotificationRouteIsTransientWhileItsAssignmentSurvivesReload() {
         try? FileManager.default.removeItem(at: Store.fileURL)
         let store = Store()

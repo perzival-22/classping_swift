@@ -176,7 +176,7 @@ extension Store {
         content.sound = .default
         // Groups ClassPing's notifications by kind in Notification Center.
         content.threadIdentifier = r.kind.rawValue
-        // Details a tap can read later (Phase 7c opens the right screen).
+        // Details the notification delegate uses to open the right screen.
         content.userInfo = ["kind": r.kind.rawValue,
                             "course": r.courseID?.uuidString ?? "",
                             "assignment": r.assignmentID?.uuidString ?? ""]

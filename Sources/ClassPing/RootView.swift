@@ -26,6 +26,7 @@ enum MainTab: Hashable { case today, notes, tasks, profile }
 struct RootView: View {
     /// The shared store, for the accent and theme the whole app reads.
     @Environment(Store.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
 
     /// The selected tab, and whether the Add menu is open. `@State` means this
     /// view owns these values and redraws when they change.
@@ -43,6 +44,8 @@ struct RootView: View {
     /// class it asks about (nil: none just ended, so it says so).
     @State private var promptOpen = false
     @State private var promptCourse: Course? = nil
+    /// Each tap starts a fresh question, even if a previous "No" card is open.
+    @State private var promptID = UUID()
 
     /// NEW in Phase 7c: the class a new task starts on after "Yes, add it".
     /// While it's set, the task form is open in a sheet.
@@ -117,6 +120,7 @@ struct RootView: View {
                                         promptOpen = false
                                         tab = .today
                                     })
+                        .id(promptID)
                         .transition(.opacity)
                 }
             }
@@ -139,15 +143,20 @@ struct RootView: View {
                     }
             }
         }
-        // NEW in Phase 7c: go where a tapped notification or "Log it" asked.
-        // `initial: true` also runs this when the screen first appears, for a
-        // tap that launched the app before this screen existed.
-        .onChange(of: store.route, initial: true) { _, route in
-            guard let route else { return }
-            go(route)
-            // Taken. Back to nil, so the same request again still counts as a change.
-            store.route = nil
+        // A tap can arrive before the window is active. Keep it queued until
+        // activation so navigation and the prompt are presented on screen.
+        .onChange(of: store.route, initial: true) { _, _ in
+            openPendingRoute()
         }
+        .onChange(of: scenePhase) { _, _ in
+            openPendingRoute()
+        }
+    }
+
+    /// Consume a tap once the app can show its destination.
+    private func openPendingRoute() {
+        guard let route = store.takeRoute(whenActive: scenePhase == .active) else { return }
+        go(route)
     }
 
     /// Opens the screen a route names. NEW in Phase 7c. Nothing you have open
@@ -167,6 +176,7 @@ struct RootView: View {
             // The class the notification names, which stays right even if
             // you tap it an hour later; else whichever class just ended.
             promptCourse = store.course(id) ?? justEnded(store.activeCourses, now: .now)?.course
+            promptID = UUID()
             promptOpen = true
         }
     }
