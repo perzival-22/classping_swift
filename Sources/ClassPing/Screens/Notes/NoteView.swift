@@ -1,17 +1,20 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Notes/NoteView.swift
 //  Phase:   8a (notes you can write and find), changed in 8b (read first)
+//           and 8c (the formatting bar and tidy)
 //  Ports:   NotePane in app/classes/page.tsx (the title, "class · day", the
 //           bin), the saving half of components/NoteEditor.tsx (save half
 //           a second after you stop typing, "Saving…" / "Saved", the 20,000
-//           character limit and New page), and since 8b the phone's view
-//           of a note, components/NoteReader.tsx
+//           character limit and New page), since 8b the phone's view of a
+//           note, components/NoteReader.tsx, and since 8c the Tidy note
+//           button and its Undo (components/NoteTidyButton.tsx)
 //
 //  Summary: One note. A note with words in it opens to read, drawn by
-//           NoteReaderView; Edit switches to typing it as plain markdown, and
-//           Done goes back to reading (D-37). An empty note opens straight
-//           for typing. Typing saves by itself a moment after you stop, when
-//           you leave, and when the app goes to the background.
+//           NoteReaderView, with Tidy note above it; Edit switches to typing
+//           it as plain markdown, with the formatting bar over the keyboard,
+//           and Done goes back to reading (D-37). An empty note opens
+//           straight for typing. Typing saves by itself a moment after you
+//           stop, when you leave, and when the app goes to the background.
 //
 
 import SwiftUI
@@ -28,6 +31,14 @@ struct NoteView: View {
     /// typing, one with words opens to read. Settled once, so typing a note's
     /// first words doesn't flip the screen over to reading.
     @State private var editing: Bool? = nil
+
+    /// NEW in Phase 8c: a tidy waiting in its sheet for Apply or Discard.
+    @State private var tidyPreview: TidyPreview? = nil
+
+    /// NEW in Phase 8c: what Undo tidy puts back, and what Apply wrote. Undo
+    /// shows while the note still holds exactly what Apply wrote; any edit
+    /// after that and it's gone, as on the web.
+    @State private var undoTidy: (original: String, applied: String)? = nil
 
     var body: some View {
         if let note = store.note(noteID) {
@@ -81,6 +92,8 @@ struct NoteView: View {
                     .font(.system(size: 12.5))
                     .foregroundStyle(Theme.muted)
                     .padding(.top, 2)
+                tidyRow(note)   // NEW in Phase 8c
+                    .padding(.top, 12)
                 Divider()
                     .padding(.vertical, 14)
                 if note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -98,6 +111,16 @@ struct NoteView: View {
         }
         .background(Theme.canvas)
         .navigationBarTitleDisplayMode(.inline)
+        // NEW in Phase 8c: the preview, until Apply or Discard. The note can't
+        // change under it while it's up (nothing syncs yet, Phase 14), so
+        // the web's "this note changed" check isn't needed.
+        .sheet(item: $tidyPreview) { preview in
+            NoteTidySheet(preview: preview) { tidied in
+                guard store.saveNoteBody(note.id, body: tidied) else { return false }
+                undoTidy = (original: preview.source, applied: tidied)
+                return true
+            }
+        }
         .toolbar {
             // The bin, as in the editor: delete, and back to the list's Undo.
             ToolbarItem(placement: .topBarTrailing) {
@@ -108,6 +131,37 @@ struct NoteView: View {
                     Image(systemName: "trash")
                 }
                 .accessibilityLabel("Delete note")
+            }
+        }
+    }
+
+    /// NEW in Phase 8c: Tidy note, and Undo tidy while it lasts. Tidy is off
+    /// for a note with nothing in it.
+    private func tidyRow(_ note: Note) -> some View {
+        let accent = store.profile.accent
+        let empty = note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return HStack(spacing: 6) {
+            Button {
+                tidyPreview = TidyPreview(source: note.body)
+            } label: {
+                Label("Tidy note", systemImage: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.brand(accent))
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 36)
+                    .background(Theme.brandSoft(accent), in: Capsule())
+            }
+            .disabled(empty)
+            .opacity(empty ? 0.5 : 1)
+
+            if let undo = undoTidy, note.body == undo.applied {
+                Button("Undo tidy") {
+                    if store.saveNoteBody(note.id, body: undo.original) { undoTidy = nil }
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.brand(accent))
+                .padding(.horizontal, 10)
+                .frame(minHeight: 36)
             }
         }
     }
@@ -130,6 +184,11 @@ private struct NoteEditorView: View {
     /// What's typed, which can run ahead of what's saved by half a second.
     @State private var title: String
     @State private var text: String
+
+    /// NEW in Phase 8c: what's selected in the note, or where the caret is.
+    /// Nil until the editor first reports one. The formatting bar reads it
+    /// to know which words to change, and sets it to select what changed.
+    @State private var selection: TextSelection? = nil
 
     /// The note started by New page, while it's open.
     @State private var nextPage: UUID?
@@ -189,7 +248,9 @@ private struct NoteEditorView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
                 }
-                TextEditor(text: $text)
+                // CHANGED in Phase 8c: `selection:` keeps `selection` up to date
+                // as you move the caret, and moves it when `selection` is set.
+                TextEditor(text: $text, selection: $selection)
                     .font(.system(size: 16))
                     .foregroundStyle(Theme.ink)
                     .focused($focus, equals: .body)
@@ -237,6 +298,14 @@ private struct NoteEditorView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
             .overlay(alignment: .top) { Divider() }
+
+            // MARK: The formatting bar
+            // NEW in Phase 8c: last in the column, so with the keyboard up it
+            // sits right on top of it. Hidden while you type the title,
+            // since every button changes the note's words.
+            if focus != .title {
+                NoteFormatBar(apply: apply)
+            }
         }
         .background(Theme.canvas)
         .navigationBarTitleDisplayMode(.inline)
@@ -291,6 +360,20 @@ private struct NoteEditorView: View {
     private struct Draft: Equatable {
         let title: String
         let body: String
+    }
+
+    /// NEW in Phase 8c: one of the bar's changes, run on what's typed and
+    /// what's selected. The new text goes into `text`, so it saves the way
+    /// typing does, and the new selection into the editor. The keyboard
+    /// comes back too, for a tap made while it was away.
+    private func apply(_ change: (NoteEdit) -> NoteEdit) {
+        let before = NoteEdit(text: text, selection: selection)
+        let after = change(before)
+        if after != before {
+            text = after.text
+            selection = after.textSelection
+        }
+        focus = .body
     }
 
     /// Hands the store what's on screen. Past the limit, the title still

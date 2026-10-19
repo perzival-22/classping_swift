@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Notes.swift
-//  Phase:   8a (notes you can write and find)
+//  Phase:   8a (notes you can write and find), changed in 8c (tidy saves)
 //  Ports:   lib/store.tsx (liveNotes, notesForClass, addNote, updateNote,
 //           deleteNote, noteById) and, from app/classes/page.tsx, the note
 //           counts, the search and today's note for a class that's on
@@ -99,6 +99,19 @@ extension Store {
         notes[i].updatedAt = .now
         save()
         return true
+    }
+
+    /// Applies a previewed body change only if it reaches the planner file.
+    /// Tidy's preview and Undo retain the proposed text for retry; on failure,
+    /// restore the original in-memory note so Discard really changes nothing.
+    /// Ordinary editor drafts keep using updateNote and its save feedback.
+    func saveNoteBody(_ id: UUID, body: String) -> Bool {
+        guard let original = note(id), updateNote(id, body: body) else { return false }
+        guard lastSaveFailed else { return true }
+        if let index = notes.firstIndex(where: { $0.id == id }) {
+            notes[index] = original
+        }
+        return false
     }
 
     /// Moves a note to Recently Deleted and offers Undo, "Week 3 deleted"

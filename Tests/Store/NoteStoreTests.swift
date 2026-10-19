@@ -178,4 +178,87 @@ import Testing
         store.undoDelete()
         #expect(Store.load().searchNotes("biology").map(\.id) == [id])
     }
+
+    @Test func formattingPersistsAndTheReaderKeepsItsMeaning() {
+        let store = freshStore()
+        let id = store.addNote(courseID: nil, date: "2026-10-19")
+        let bold = toggleMark(.bold, in: NoteEdit(text: "cell", selection: 0..<4))
+        let marked = highlight(in: bold)
+        store.updateNote(id, title: "Biology", body: marked.text)
+        let loaded = Store.load()
+        let runs = noteRuns(loaded.note(id)?.body ?? "")
+        #expect(runs == [InlineRun(text: "cell", bold: true, highlight: true)])
+        #expect(loaded.note(id)?.title == "Biology")
+    }
+
+    @Test func tidyPreviewApplyAndUndoPreserveTheNoteAndItsLinks() {
+        let store = freshStore()
+        let courseID = UUID()
+        let assignmentID = UUID()
+        let id = store.addNote(courseID: courseID, date: "2026-10-19", assignmentID: assignmentID)
+        let source = "BIOLOGY 101\nCell parts:\nnucleus\nmitochondria\nribosome"
+        store.updateNote(id, title: "Lecture", body: source)
+        let tidy = tidyNote(source)
+        #expect(tidy.changed)
+        // Previewing or discarding a pure tidy has no store side effect.
+        #expect(Store.load().note(id)?.body == source)
+        #expect(store.saveNoteBody(id, body: tidy.body))
+        let applied = Store.load().note(id)
+        #expect(applied?.body == tidy.body)
+        #expect(applied?.title == "Lecture")
+        #expect(applied?.courseID == courseID)
+        #expect(applied?.assignmentID == assignmentID)
+        #expect(parseBlocks(applied?.body ?? "").map(\.kind) == [.h2, .p, .h2, .ul, .ul, .ul])
+        #expect(store.saveNoteBody(id, body: source))
+        #expect(Store.load().note(id)?.body == source)
+    }
+
+    @Test func failedTidyApplyOrUndoKeepsTheOriginalAndCanBeRetried() {
+        let store = freshStore()
+        let id = store.addNote(courseID: nil, date: "2026-10-19")
+        let source = "NOTES\nfirst point\nsecond point"
+        store.updateNote(id, body: source)
+        let tidy = tidyNote(source)
+        let original = store.note(id)
+
+        // Use an unwritable planner destination without touching real files.
+        try? FileManager.default.removeItem(at: Store.fileURL)
+        let blocked = (try? FileManager.default.createDirectory(
+            at: Store.fileURL, withIntermediateDirectories: false)) != nil
+        #expect(blocked)
+        guard blocked else { return }
+        #expect(!store.saveNoteBody(id, body: tidy.body))
+        #expect(store.lastSaveFailed)
+        #expect(store.note(id) == original)
+        try? FileManager.default.removeItem(at: Store.fileURL)
+        #expect(store.saveNoteBody(id, body: tidy.body))
+        #expect(!store.lastSaveFailed)
+        #expect(Store.load().note(id)?.body == tidy.body)
+
+        let applied = store.note(id)
+        try? FileManager.default.removeItem(at: Store.fileURL)
+        let undoBlocked = (try? FileManager.default.createDirectory(
+            at: Store.fileURL, withIntermediateDirectories: false)) != nil
+        #expect(undoBlocked)
+        guard undoBlocked else { return }
+        #expect(!store.saveNoteBody(id, body: source))
+        #expect(store.note(id) == applied)
+        try? FileManager.default.removeItem(at: Store.fileURL)
+        #expect(store.saveNoteBody(id, body: source))
+        #expect(Store.load().note(id)?.body == source)
+    }
+
+    @Test func previewedBodyChangesCannotReplaceDeletedOrOverBudgetNotes() {
+        let store = freshStore()
+        let id = store.addNote(courseID: nil, date: "2026-10-19")
+        store.updateNote(id, body: "Kept")
+        let original = store.note(id)
+        #expect(!store.saveNoteBody(id, body: String(repeating: "x", count: maxNoteChars + 1)))
+        #expect(store.note(id) == original)
+        #expect(Store.load().note(id)?.body == "Kept")
+        store.deleteNote(id)
+        #expect(!store.saveNoteBody(id, body: "Late tidy"))
+        store.undoDelete()
+        #expect(Store.load().note(id)?.body == "Kept")
+    }
 }
