@@ -1,4 +1,5 @@
-// Phase 9a: use an isolated Documents path, never the real planner file.
+// Phase 9a, extended in 9b (scale choice, custom bands and goals): use an
+// isolated Documents path, never the real planner file.
 import Foundation
 import Testing
 @testable import CPLogic
@@ -165,5 +166,94 @@ import Testing
         store.profile.customScale = [.init(min: 70, letter: "First", points: 5)]
         store.save()
         #expect(Store.load().gradeScale == store.profile.customScale)
+    }
+
+    // MARK: - Phase 9b: scales and goals
+
+    @Test func scaleChoiceAndCustomBandsSurviveAReload() {
+        let (store, _) = fresh()
+        #expect(store.setGradeScale(.custom))
+        // Unsorted, with one row normalizeScale must drop (no letter).
+        #expect(store.setCustomScale([.init(min: 60, letter: " 2:1 ", points: 3),
+                                      .init(min: 50, letter: "", points: 2),
+                                      .init(min: 70, letter: "First", points: 4)]))
+        let loaded = Store.load()
+        #expect(loaded.profile.gradeScale == .custom)
+        #expect(loaded.profile.customScale == [.init(min: 70, letter: "First", points: 4),
+                                               .init(min: 60, letter: "2:1", points: 3)])
+        #expect(letterFor(64, loaded.gradeScale) == "2:1")
+        #expect(!loaded.usesFallbackScale)
+        #expect(store.setGradeScale(.simple))
+        #expect(Store.load().gradeScale == SIMPLE_SCALE)
+    }
+
+    @Test func nothingUsableSavesAnEmptyScaleAndFallsBack() {
+        let (store, _) = fresh()
+        store.setGradeScale(.custom)
+        #expect(store.setCustomScale([.init(min: 50, letter: "", points: 2),
+                                      .init(min: 200, letter: "X", points: 2)]))
+        let loaded = Store.load()
+        #expect(loaded.profile.customScale.isEmpty)
+        #expect(loaded.usesFallbackScale)
+        #expect(loaded.gradeScale == DEFAULT_SCALE)
+    }
+
+    @Test func goalsSaveClearAndFeedTheProjection() {
+        let (store, course) = fresh()
+        var value = result(course); value.score = 60; value.weight = 50
+        store.addGrade(value)
+        #expect(projectedGpa(store.activeCourses, store.liveGrades) == nil)
+        #expect(store.setGoal(95, for: course.id))
+        #expect(Store.load().course(course.id)?.goal == 95)
+        #expect(projectedGpa(store.activeCourses, store.liveGrades) == 4)
+        // 60% on 50 banks 30 points; 95 needs 130% on the remaining 50.
+        #expect(whatIfNeeded(store.grades(for: course.id), 95)?.outOfReach == true)
+        #expect(store.setGoal(nil, for: course.id))
+        #expect(Store.load().course(course.id)?.goal == nil)
+        #expect(store.setGoal(0, for: course.id))
+        #expect(store.course(course.id)?.goal == nil)
+    }
+
+    @Test func impossibleGoalsAndMissingClassesAreRefused() {
+        let (store, course) = fresh()
+        #expect(store.setGoal(90, for: course.id))
+        #expect(!store.setGoal(150, for: course.id))
+        #expect(!store.setGoal(.nan, for: course.id))
+        #expect(!store.setGoal(.infinity, for: course.id))
+        #expect(!store.setGoal(90, for: UUID()))
+        #expect(store.course(course.id)?.goal == 90)
+        store.deleteCourse(course.id)
+        #expect(!store.setGoal(80, for: course.id))
+    }
+
+    @Test func failedScaleAndGoalWritesPutTheOldValuesBack() {
+        let (store, course) = fresh()
+        store.setGoal(90, for: course.id)
+        let bands = [ScaleBand(min: 70, letter: "First", points: 4)]
+        store.setCustomScale(bands)
+        let blocked = blockWrites(); #expect(blocked); guard blocked else { return }
+        #expect(!store.setGradeScale(.simple))
+        #expect(store.profile.gradeScale == nil)
+        #expect(!store.setCustomScale([.init(min: 50, letter: "Pass", points: 1)]))
+        #expect(store.profile.customScale == bands)
+        #expect(!store.setGoal(80, for: course.id))
+        #expect(store.course(course.id)?.goal == 90)
+        // The same bands again still retry while the last write had failed.
+        #expect(!store.setCustomScale(bands))
+        try? FileManager.default.removeItem(at: Store.fileURL)
+        #expect(store.setGoal(80, for: course.id))
+        #expect(Store.load().course(course.id)?.goal == 80)
+        #expect(Store.load().profile.customScale == bands)
+    }
+
+    @Test func unchangedBandsSkipTheWrite() {
+        let (store, _) = fresh()
+        let bands = [ScaleBand(min: 70, letter: "First", points: 4)]
+        #expect(store.setCustomScale(bands))
+        // With writes blocked, only a call that skips the write can succeed.
+        let blocked = blockWrites(); #expect(blocked); guard blocked else { return }
+        #expect(store.setCustomScale([.init(min: 70, letter: " First", points: 4)]))
+        #expect(!store.lastSaveFailed)
+        try? FileManager.default.removeItem(at: Store.fileURL)
     }
 }

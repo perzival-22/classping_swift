@@ -1,8 +1,10 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Screens/Grades/GradeFormView.swift
-// Phase: 9a
+// Phase: 9a, changed in 9b (D-54)
 // Ports: app/grades/new, app/grades/[id]/edit and components/GradeFields.
 // Summary: One sheet for adding and editing. A failed save keeps the draft.
+// Since 9b the fields wear your accent, and the keyboard can be swiped away
+// or put down with Done, so Save & add another is never stuck under it.
 //
 import SwiftUI
 
@@ -21,6 +23,11 @@ struct GradeFormView: View {
     @State private var message: String? = nil
     @State private var addedCount = 0
     @State private var showCourseForm = false
+
+    // NEW in Phase 9b: which field has the keyboard, so Done can put it away
+    // and Return on the title can move on to the score. `@FocusState` (6a).
+    private enum Field { case title, score, maximum, weight }
+    @FocusState private var focus: Field?
 
     /// State is seeded once per sheet, never overwritten by a store redraw.
     init(editing: Grade? = nil, courseID: UUID? = nil) {
@@ -85,18 +92,23 @@ struct GradeFormView: View {
                                 Text($0.rawValue.capitalized).tag(Optional($0))
                             }
                         }
+                        // CHANGED in Phase 9b: the accent well, and Return goes to Score.
                         TextField("Title", text: $title)
+                            .focused($focus, equals: .title)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .score }
+                            .inputField(store.profile.accent)
                         DatePicker("Date", selection: $date, displayedComponents: .date)
                     }
                     Section("Result") {
-                        numberField("Score", text: $score)
-                        numberField("Out of", text: $maximum)
+                        numberField("Score", text: $score, field: .score)
+                        numberField("Out of", text: $maximum, field: .maximum)
                         if let hint = extraCreditHint(number(score), number(maximum)) {
                             Text(hint).font(.footnote).foregroundStyle(Theme.muted)
                         }
                     }
                     Section("Weight in this class") {
-                        numberField("Weight (%)", text: $weight)
+                        numberField("Weight (%)", text: $weight, field: .weight)
                         budget
                     }
                     if editing == nil {
@@ -110,6 +122,8 @@ struct GradeFormView: View {
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .tint(Theme.brand(store.profile.accent))
+            // NEW in Phase 9b: swipe down or tap Done to see the buttons again.
+            .keyboardDismissable { focus = nil }
             .navigationTitle(editing == nil ? "New Grade" : "Edit Grade")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -135,13 +149,20 @@ struct GradeFormView: View {
     }
 
     /// Keep labels visible after typing, including for VoiceOver.
-    private func numberField(_ label: String, text: Binding<String>) -> some View {
+    // CHANGED in Phase 9b: the accent well, at most 120 points wide so it
+    // reads as a box for a number, and a focus id for Done.
+    private func numberField(_ label: String, text: Binding<String>,
+                             field: Field) -> some View {
         HStack {
             Text(label)
+            Spacer(minLength: 12)
             TextField(label, text: text)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
+                .focused($focus, equals: field)
                 .accessibilityLabel(label)
+                .frame(maxWidth: 120)
+                .inputField(store.profile.accent)
         }
     }
 

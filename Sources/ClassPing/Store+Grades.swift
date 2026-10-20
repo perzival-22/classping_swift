@@ -1,14 +1,19 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Store+Grades.swift
-// Phase: 9a
-// Ports: lib/store.tsx (grade actions) and app/grades' filtering.
+// Phase: 9a, extended in 9b
+// Ports: lib/store.tsx (grade actions, and the gradeScale, customScale and
+//        goal writes) and app/grades' filtering.
 // Summary: Grade CRUD, validation and the bridge to the pure GPA functions.
+//          Since 9b also the scale choice, the custom bands and class goals,
+//          each saved only once planner.json has it.
 //
 import Foundation
 
 // These models already have every field the maths asks for.
 extension Grade: GradedResult {}
 extension Course: GradedCourse {}
+// NEW in Phase 9b: Course already has `goal`, so signing up is one line.
+extension Course: GoalCourse {}
 
 extension Store {
     var liveGrades: [Grade] { grades.filter { $0.deletedAt == nil } }
@@ -22,6 +27,13 @@ extension Store {
 
     var gradeScale: [ScaleBand] {
         resolveScale(profile.gradeScale?.rawValue, custom: profile.customScale)
+    }
+
+    // NEW in Phase 9b
+    /// True while Custom is chosen but none of its bands are usable, so the
+    /// standard scale is standing in. The Grades screen says so.
+    var usesFallbackScale: Bool {
+        customScaleIsEmpty(profile.gradeScale?.rawValue, custom: profile.customScale)
     }
 
     /// Past terms keep their own totals, in order of the courses in the store.
@@ -96,6 +108,53 @@ extension Store {
         let title = grades[index].title.trimmingCharacters(in: .whitespacesAndNewlines)
         pendingUndo = PendingUndo(item: .grade(id),
                                   label: "\(title.isEmpty ? "Grade" : title) deleted", at: now)
+        return true
+    }
+
+    // MARK: - Scales and goals (NEW in Phase 9b)
+
+    /// Switch between the standard, simple and custom scales: the web's
+    /// `setProfile({ gradeScale })`. Like the grade actions, true only once
+    /// planner.json has it; a failed write puts the old choice back.
+    @discardableResult
+    func setGradeScale(_ next: Profile.GradeScale) -> Bool {
+        let before = profile.gradeScale
+        profile.gradeScale = next
+        save()
+        if lastSaveFailed { profile.gradeScale = before; return false }
+        return true
+    }
+
+    /// Save the usable part of a custom scale, high to low: what the web's
+    /// editor saves on every edit (`normalizeScale(...) ?? []`). Nothing
+    /// usable saves an empty list, and grading falls back to the standard scale.
+    @discardableResult
+    func setCustomScale(_ draft: [ScaleBand]) -> Bool {
+        let clean = normalizeScale(draft) ?? []
+        // Typing into a half-finished row changes nothing usable: skip the
+        // write. After a failed write, always try again.
+        if clean == profile.customScale && !lastSaveFailed { return true }
+        let before = profile.customScale
+        profile.customScale = clean
+        save()
+        if lastSaveFailed { profile.customScale = before; return false }
+        return true
+    }
+
+    /// Set or clear a class's target percentage: `updateClass(id, { goal })`.
+    /// Nil, zero or less clears it, which is how the maths reads them anyway.
+    /// A missing or deleted class, or a number that isn't a percentage, is
+    /// refused. A failed write keeps the old goal.
+    @discardableResult
+    func setGoal(_ goal: Double?, for courseID: UUID) -> Bool {
+        guard let index = courses.firstIndex(where: { $0.id == courseID && $0.deletedAt == nil })
+        else { return false }
+        if let goal, !goal.isFinite || goal > 100 { return false }
+        let before = courses[index].goal
+        // `flatMap` on an optional: keep a positive goal, turn the rest into nil.
+        courses[index].goal = goal.flatMap { $0 > 0 ? $0 : nil }
+        save()
+        if lastSaveFailed { courses[index].goal = before; return false }
         return true
     }
 }

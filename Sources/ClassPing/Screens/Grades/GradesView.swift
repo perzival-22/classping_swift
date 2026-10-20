@@ -1,9 +1,11 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Screens/Grades/GradesView.swift
-// Phase: 9a
-// Ports: app/grades/page.tsx, reached from Profile (D-19).
+// Phase: 9a, extended in 9b
+// Ports: app/grades/page.tsx, reached from Profile (D-19), and the grading
+//        card of app/settings/page.tsx (D-51).
 // Summary: This term's credit-weighted GPA, results and separate past terms.
-// Custom-scale editing and projections come in 9b; exports/countdown in 9c.
+// 9b adds the projected GPA, a goal on each class, and the three scales with
+// the custom editor. Exports and the finals countdown come in 9c.
 //
 import SwiftUI
 
@@ -93,33 +95,85 @@ struct GradesView: View {
                  : "Across \(count) graded \(count == 1 ? "class" : "classes"). Weighted by credits; an unset credit counts as one.")
                 .font(.footnote)
                 .foregroundStyle(Theme.muted)
+
+            // NEW in Phase 9b: where the term lands if every goal is met.
+            // Nil until a class has a goal, so it never just repeats the GPA.
+            if let projected = projectedGpa(store.activeCourses, store.liveGrades, store.gradeScale) {
+                HStack(spacing: 10) {
+                    Image(systemName: "target")
+                        .foregroundStyle(Theme.brand(store.profile.accent))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("PROJECTED BY END OF TERM")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Theme.brandDeep(store.profile.accent))
+                        Text("If you hit every goal you've set.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.muted)
+                    }
+                    Spacer(minLength: 8)
+                    Text(projected.formatted(.number.precision(.fractionLength(2))))
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.brandDeep(store.profile.accent))
+                }
+                .padding(12)
+                .background(Theme.brandSoft(store.profile.accent),
+                            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                // One VoiceOver stop: "Projected by end of term, 3.50".
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Projected by end of term if you hit every goal, \(projected.formatted(.number.precision(.fractionLength(2))))")
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
 
-    /// Built-ins now; an existing custom scale remains selected and readable.
+    // CHANGED in Phase 9b: all three scales, as the web's grading card has
+    // them, with Custom opening its editor (D-51). The choice goes through
+    // the store, which puts the old one back if the write fails.
     private var scalePicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let selected = store.profile.gradeScale ?? .standard
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("GRADING SCALE")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.muted)
+                .accessibilityAddTraits(.isHeader)
             Picker("Grade scale", selection: Binding(
                 get: { store.profile.gradeScale ?? .standard },
-                set: { next in
-                    let old = store.profile.gradeScale
-                    store.profile.gradeScale = next
-                    store.save()
-                    if store.lastSaveFailed { store.profile.gradeScale = old }
-                }
+                set: { store.setGradeScale($0) }
             )) {
-                Text("US 4.0 (plus/minus)").tag(Profile.GradeScale.standard)
-                Text("US 4.0 (simple)").tag(Profile.GradeScale.simple)
-                if store.profile.gradeScale == .custom || !store.profile.customScale.isEmpty {
-                    Text("Custom").tag(Profile.GradeScale.custom)
-                }
+                Text("A / A\u{2212}").tag(Profile.GradeScale.standard)
+                Text("A / B / C").tag(Profile.GradeScale.simple)
+                Text("Custom").tag(Profile.GradeScale.custom)
             }
-            if store.profile.gradeScale == .custom && normalizeScale(store.profile.customScale) == nil {
-                Text("Your custom scale is empty. Using US 4.0 for now.")
+            .pickerStyle(.segmented)
+
+            // A line about the chosen scale; Custom adds the way into its editor.
+            switch selected {
+            case .standard:
+                Text("93+ is an A, 90+ an A\u{2212}. The usual US scale.")
                     .font(.footnote).foregroundStyle(Theme.muted)
+            case .simple:
+                Text("90+ is an A, 80+ a B. No plus or minus bands.")
+                    .font(.footnote).foregroundStyle(Theme.muted)
+            case .custom:
+                Text(store.usesFallbackScale
+                     ? "Your custom scale is empty. Using US 4.0 for now."
+                     : "Using your \(store.gradeScale.count) bands.")
+                    .font(.footnote).foregroundStyle(Theme.muted)
+                NavigationLink {
+                    GradeScaleEditor(saved: store.profile.customScale)
+                } label: {
+                    HStack {
+                        Text(store.usesFallbackScale ? "Set up your scale" : "Edit your scale")
+                        Spacer()
+                        Image(systemName: "chevron.right").accessibilityHidden(true)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
             }
         }
         .padding(16)
@@ -149,6 +203,11 @@ struct GradesView: View {
                         .font(.title2.bold())
                         .foregroundStyle(Theme.subjectInk(course.color))
                 }
+            }
+            // NEW in Phase 9b: this term's classes (the ones you can add to)
+            // get a goal and the "what do I need?" answer. Past terms don't.
+            if canAdd {
+                GoalCard(course: course, grades: grades)
             }
             ForEach(grades) { grade in
                 Divider()
