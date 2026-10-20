@@ -1,5 +1,6 @@
-// Phase 9a, extended in 9b (scale choice, custom bands and goals): use an
-// isolated Documents path, never the real planner file.
+// Phase 9a, extended in 9b (scale choice, custom bands and goals) and 9c
+// (the finals date and the term report): use an isolated Documents path,
+// never the real planner file.
 import Foundation
 import Testing
 @testable import CPLogic
@@ -255,5 +256,67 @@ import Testing
         #expect(store.setCustomScale([.init(min: 70, letter: " First", points: 4)]))
         #expect(!store.lastSaveFailed)
         try? FileManager.default.removeItem(at: Store.fileURL)
+    }
+
+    // MARK: - Phase 9c: the finals date and the term report
+
+    @Test func finalsDateSavesClearsAndSurvivesAReload() {
+        let (store, _) = fresh()
+        #expect(store.setFinalsDate("2026-12-10"))
+        #expect(Store.load().profile.finalsDate == "2026-12-10")
+        #expect(store.setFinalsDate(nil))
+        #expect(Store.load().profile.finalsDate == nil)
+    }
+
+    @Test func aFinalsDateMustBeARealDay() {
+        let (store, _) = fresh()
+        store.setFinalsDate("2026-12-10")
+        #expect(!store.setFinalsDate("2026-02-30"))
+        #expect(!store.setFinalsDate("12/10/2026"))
+        #expect(!store.setFinalsDate(""))
+        #expect(Store.load().profile.finalsDate == "2026-12-10")
+    }
+
+    @Test func aFailedFinalsWriteKeepsTheOldDate() {
+        let (store, _) = fresh()
+        store.setFinalsDate("2026-12-10")
+        let blocked = blockWrites(); #expect(blocked); guard blocked else { return }
+        #expect(!store.setFinalsDate("2026-12-14"))
+        #expect(store.profile.finalsDate == "2026-12-10")
+        #expect(!store.setFinalsDate(nil))
+        #expect(store.profile.finalsDate == "2026-12-10")
+        try? FileManager.default.removeItem(at: Store.fileURL)
+        #expect(store.setFinalsDate("2026-12-14"))
+        #expect(Store.load().profile.finalsDate == "2026-12-14")
+    }
+
+    /// This term's classes with your scale and term name; a past term's class
+    /// and a deleted result stay out of the file.
+    @Test func theTermReportCoversThisTermWithYourScale() {
+        let (store, course) = fresh()
+        store.addGrade(Grade(courseID: course.id, title: "Lab, week 1", score: 72, max: 100,
+                             weight: 40, date: "2026-09-02", kind: .assignment))
+        let mistake = Grade(courseID: course.id, title: "Mistake", score: 0, max: 100,
+                            weight: 10, date: "2026-09-03")
+        store.addGrade(mistake)
+        store.deleteGrade(mistake.id)
+        let old = Course(name: "History", short: "Hist", color: .teal,
+                         days: [1], startMin: 600, endMin: 660)
+        store.addCourse(old)
+        store.addGrade(Grade(courseID: old.id, title: "Essay", score: 90, max: 100,
+                             weight: 100, date: "2026-03-01"))
+        if let i = store.courses.firstIndex(where: { $0.id == old.id }) { store.courses[i].archived = true }
+        store.profile.termName = "  Fall 2026 "
+        store.setGradeScale(.custom)
+        store.setCustomScale([.init(min: 70, letter: "First", points: 4),
+                              .init(min: 60, letter: "2:1", points: 3)])
+
+        let csv = store.termReport.csv(at: .now)
+        #expect(csv.contains("\r\nTerm,Fall 2026\r\n"))
+        #expect(csv.contains("Biology,1,\"Lab, week 1\",assignment,2026-09-02,72,100,72.0,40"))
+        #expect(csv.contains("Biology,1,72.0,First,4.0"))
+        #expect(!csv.contains("Mistake"))
+        #expect(!csv.contains("History"))
+        #expect(csv.hasSuffix("\r\nOverall GPA,4.00\r\n"))
     }
 }

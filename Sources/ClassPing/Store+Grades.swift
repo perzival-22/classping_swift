@@ -1,11 +1,13 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Store+Grades.swift
-// Phase: 9a, extended in 9b
-// Ports: lib/store.tsx (grade actions, and the gradeScale, customScale and
-//        goal writes) and app/grades' filtering.
+// Phase: 9a, extended in 9b and 9c
+// Ports: lib/store.tsx (grade actions, and the gradeScale, customScale,
+//        goal and finalsDate writes), app/grades' filtering, and what
+//        ExportReportButton in app/grades/page.tsx gathers for the report.
 // Summary: Grade CRUD, validation and the bridge to the pure GPA functions.
 //          Since 9b also the scale choice, the custom bands and class goals,
-//          each saved only once planner.json has it.
+//          and since 9c the finals date, each saved only once planner.json
+//          has it. 9c also hands the term report its classes and results.
 //
 import Foundation
 
@@ -14,6 +16,29 @@ extension Grade: GradedResult {}
 extension Course: GradedCourse {}
 // NEW in Phase 9b: Course already has `goal`, so signing up is one line.
 extension Course: GoalCourse {}
+// NEW in Phase 9c: Course has `name`. Grade's kind is an enum, and the
+// report prints its raw value ("exam"), the word the web stores.
+extension Course: ReportCourse {}
+extension Grade: ReportGrade {
+    var kindName: String? { kind?.rawValue }
+}
+
+// NEW in Phase 9c
+/// What the term report needs, copied out of the store: the same things the
+/// web's export button sends to its server. The phone builds the file itself
+/// (D-6). Plain values (`Sendable`), so the file can be made off the main
+/// actor, at the moment the share sheet asks for it.
+struct TermReport: Sendable {
+    var courses: [Course]
+    var grades: [Grade]
+    var scale: [ScaleBand]
+    var termName: String?
+
+    /// The CSV text, dated `now`.
+    func csv(at now: Date) -> String {
+        buildGradeReport(courses, grades, scale: scale, termName: termName, generatedAt: now)
+    }
+}
 
 extension Store {
     var liveGrades: [Grade] { grades.filter { $0.deletedAt == nil } }
@@ -156,5 +181,29 @@ extension Store {
         save()
         if lastSaveFailed { courses[index].goal = before; return false }
         return true
+    }
+
+    // MARK: - Finals and the report (NEW in Phase 9c)
+
+    /// Set or clear the finals date: the web's `setProfile({ finalsDate })`.
+    /// A day must be a real "yyyy-MM-dd", and nil clears it. Like the scale
+    /// and goals, true only once planner.json has it; a failed write puts the
+    /// old date back.
+    @discardableResult
+    func setFinalsDate(_ day: String?) -> Bool {
+        if let day, !isValidDate(day) { return false }
+        let before = profile.finalsDate
+        profile.finalsDate = day
+        save()
+        if lastSaveFailed { profile.finalsDate = before; return false }
+        return true
+    }
+
+    /// This term's report: this term's classes, every live result, your
+    /// scale and your term's name. Past terms and deleted results stay out,
+    /// as on the web.
+    var termReport: TermReport {
+        TermReport(courses: activeCourses, grades: liveGrades,
+                   scale: gradeScale, termName: profile.termName)
     }
 }

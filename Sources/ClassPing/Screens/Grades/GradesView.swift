@@ -1,11 +1,11 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Screens/Grades/GradesView.swift
-// Phase: 9a, extended in 9b
+// Phase: 9a, extended in 9b and 9c
 // Ports: app/grades/page.tsx, reached from Profile (D-19), and the grading
 //        card of app/settings/page.tsx (D-51).
 // Summary: This term's credit-weighted GPA, results and separate past terms.
 // 9b adds the projected GPA, a goal on each class, and the three scales with
-// the custom editor. Exports and the finals countdown come in 9c.
+// the custom editor. 9c adds the finals countdown and the term report.
 //
 import SwiftUI
 
@@ -33,6 +33,9 @@ struct GradesView: View {
                     .font(.footnote)
                 }
                 overview
+                // NEW in Phase 9c: under the GPA, where the web's phone layout
+                // puts it.
+                FinalsCountdown()
                 scalePicker
                 if store.activeCourses.isEmpty {
                     Text("No classes in this term yet. Add a class to start logging grades.")
@@ -42,6 +45,11 @@ struct GradesView: View {
                         .cardStyle()
                 }
                 ForEach(store.activeCourses) { course in courseCard(course, canAdd: true) }
+                // NEW in Phase 9c: the report, once there's a term to describe
+                // (the web shows it as soon as a class exists, grades or not).
+                if !store.activeCourses.isEmpty {
+                    TermReportCard()
+                }
                 ForEach(store.gradedPastTerms, id: \.self) { term in
                     pastTerm(term)
                 }
@@ -86,7 +94,9 @@ struct GradesView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.muted)
                 .accessibilityAddTraits(.isHeader)
-            Text(gpa.map { $0.formatted(.number.precision(.fractionLength(2))) } ?? "—")
+            // CHANGED in Phase 9c: rounded like the web's toFixed (D-57), so
+            // the card and the CSV report always show the same GPA.
+            Text(gpa.map { jsFixed($0, 2) } ?? "—")
                 .font(.system(size: 42, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.brand(store.profile.accent))
                 .monospacedDigit()
@@ -112,7 +122,7 @@ struct GradesView: View {
                             .foregroundStyle(Theme.muted)
                     }
                     Spacer(minLength: 8)
-                    Text(projected.formatted(.number.precision(.fractionLength(2))))
+                    Text(jsFixed(projected, 2))   // CHANGED in Phase 9c (D-57)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Theme.brandDeep(store.profile.accent))
@@ -122,7 +132,7 @@ struct GradesView: View {
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 // One VoiceOver stop: "Projected by end of term, 3.50".
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Projected by end of term if you hit every goal, \(projected.formatted(.number.precision(.fractionLength(2))))")
+                .accessibilityLabel("Projected by end of term if you hit every goal, \(jsFixed(projected, 2))")
             }
         }
         .padding(20)
@@ -190,7 +200,8 @@ struct GradesView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(course.name).font(.headline).foregroundStyle(Theme.ink)
                         .accessibilityAddTraits(.isHeader)
-                    Text(average.map { "\($0.formatted(.number.precision(.fractionLength(1))))% average" }
+                    // CHANGED in Phase 9c: toFixed(1) rounding (D-57).
+                    Text(average.map { "\(jsFixed($0, 1))% average" }
                          ?? "No grades logged yet")
                         .font(.footnote).foregroundStyle(Theme.muted)
                     if course.credits != nil {
@@ -260,7 +271,7 @@ struct GradesView: View {
                 .font(.headline).foregroundStyle(Theme.muted)
                 .accessibilityAddTraits(.isHeader)
             if let gpa {
-                Text("\(gpa.formatted(.number.precision(.fractionLength(2)))) GPA")
+                Text("\(jsFixed(gpa, 2)) GPA")   // CHANGED in Phase 9c (D-57)
                     .font(.subheadline)
             }
             ForEach(courses) { course in courseCard(course, canAdd: false) }

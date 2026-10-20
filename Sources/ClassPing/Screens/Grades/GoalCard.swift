@@ -1,6 +1,6 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Screens/Grades/GoalCard.swift
-// Phase: 9b (scales, goals and what-if)
+// Phase: 9b (scales, goals and what-if), rounding changed in 9c (D-57)
 // Ports: GoalBlock in app/grades/page.tsx.
 // Summary: A class's target grade and what it will take to get there. Pick a
 //          goal from the top bands of your scale, then read what you need on
@@ -145,7 +145,8 @@ struct GoalCard: View {
                 if result.alreadySecured {
                     Text("Already locked in, even a zero on the remaining \(left)% keeps you there. 🎉")
                 } else {
-                    let needed = Text("\(result.needed.formatted(.number.precision(.fractionLength(1))))%")
+                    // CHANGED in Phase 9c: toFixed(1) rounding, as on the web (D-57).
+                    let needed = Text("\(jsFixed(result.needed, 1))%")
                         .bold()
                         .foregroundStyle(accent)
                     let reach = result.outOfReach
@@ -158,11 +159,12 @@ struct GoalCard: View {
                 Text("Your logged weights add up to \(usedText), more than the 100% a class has. The average still works, it's scaled to fit, but there's no \u{201C}remaining\u{201D} left to work out what you need. Tap a grade to fix its weight.")
             } else if let average = classAverage(grades) {
                 // Exactly 100: fully graded, so report the result.
-                let finished = average.formatted(.number.precision(.fractionLength(1)))
+                // CHANGED in Phase 9c: toFixed(1) rounding, as on the web (D-57).
+                let finished = jsFixed(average, 1)
                 if average >= goal {
                     Text("Everything's graded, you finished at \(finished)%. Goal met. 🎉")
                 } else {
-                    Text("Everything's graded, you finished at \(finished)%, \((goal - average).formatted(.number.precision(.fractionLength(1)))) points short.")
+                    Text("Everything's graded, you finished at \(finished)%, \(jsFixed(goal - average, 1)) points short.")
                 }
             } else {
                 Text("Nothing graded yet.")
