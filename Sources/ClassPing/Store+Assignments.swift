@@ -31,6 +31,7 @@ struct PendingUndo: Equatable {
         case assignment(UUID)
         case course(UUID)      // the class; its work comes back with it
         case note(UUID)        // NEW in Phase 8a
+        case grade(UUID)       // NEW in Phase 9a
     }
 
     let item: Item
@@ -174,6 +175,11 @@ extension Store {
         // `switch` over the enum. `case .assignment(let id)` matches that
         // case AND pulls out the id it carries into a new constant, `id`.
         switch undo.item {
+        case .grade(let id):
+            // Phase 9a: a grade's date, class, score and weight stay intact.
+            if let index = grades.firstIndex(where: { $0.id == id }) {
+                grades[index].deletedAt = nil
+            }
         case .assignment(let id):
             if let index = assignments.firstIndex(where: { $0.id == id }) {
                 assignments[index].deletedAt = nil

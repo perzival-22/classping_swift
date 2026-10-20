@@ -18,12 +18,8 @@ struct SavedFeed: Identifiable, Codable, Hashable {
     var lastSyncedAt: Date? = nil 
 }
 
-//One band of custom grade scale
-struct ScaleBand: Codable, Hashable {
-    var min: Double                 // lowest percent for this letter
-    var letter: String
-    var points: Double  
-}
+// Phase 9a: ScaleBand now lives in Logic/GPA.swift so Linux logic tests can
+// use it too. Its Codable fields have not changed; old profiles still load.
 
 struct Profile: Codable, Hashable {
     //Theme ligh or dark

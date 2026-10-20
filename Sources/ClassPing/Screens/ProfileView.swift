@@ -69,10 +69,24 @@ struct ProfileView: View {
                 // NEW in Phase 7a: the after-class nudge and quiet hours.
                 RemindersSection()
 
+                // Phase 9a: Grades now opens on Profile's navigation stack.
+                NavigationLink {
+                    GradesView()
+                } label: {
+                    HStack {
+                        Label("Grades & GPA", systemImage: "graduationcap")
+                        Spacer()
+                        Image(systemName: "chevron.right").accessibilityHidden(true)
+                    }
+                    .foregroundStyle(Theme.ink)
+                    .padding(16)
+                    .frame(minHeight: 44)
+                    .cardStyle()
+                }
+
                 // MARK: Coming to this tab
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("COMING TO THIS TAB")
-                    comingRow("graduationcap", "Grades & GPA")
                     // CHANGED in Phase 7a: the "Reminders and quiet hours" row
                     // is gone; it's the card above now.
                     comingRow("calendar", "Semester, backups, Recently Deleted")
