@@ -1,11 +1,14 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Grades/FinalsCountdown.swift
 //  Phase:   9c (finals countdown and the CSV report), changed in 9b+ (D-58)
+//           and again after its phone check (D-60)
 //  Ports:   components/FinalsCountdown.tsx
 //
 //  Summary: The Days to Finals card on Grades: a live count of the days left
 //           until your finals date, and a small form to set, change or clear
-//           it. The date is saved on your profile, as on the web.
+//           it. The date is saved on your profile, as on the web. Since D-60
+//           the picker and Save only appear after you ask for them, so Clear
+//           can't be followed by a Save of a date you never picked.
 //
 
 import SwiftUI
@@ -13,7 +16,7 @@ import SwiftUI
 struct FinalsCountdown: View {
     @Environment(Store.self) private var store
 
-    /// True while you're changing a date that's already set.
+    /// True while the picker is open: setting a first date, or changing one.
     @State private var editing = false
     /// The day in the picker, before you tap Save.
     @State private var draft = Date.now
@@ -43,7 +46,10 @@ struct FinalsCountdown: View {
                 }
             }
 
-            if hasDate && !editing {
+            // Three states: picker, countdown, or a prompt to set a date.
+            if editing {
+                editor(hasDate: hasDate)
+            } else if hasDate {
                 // TimelineView (5a) redraws once a minute, so the count turns
                 // over at midnight even if this screen stays open.
                 TimelineView(.everyMinute) { context in
@@ -52,7 +58,7 @@ struct FinalsCountdown: View {
                     }
                 }
             } else {
-                editor(hasDate: hasDate)
+                empty
             }
         }
         .padding(16)
@@ -82,12 +88,22 @@ struct FinalsCountdown: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// Ask for a date (none yet), or change or clear the one you have.
-    /// The web shows Clear and Cancel only when there's a date to go back to.
+    /// No date yet, or just cleared: offer the web's prompt with a button
+    /// instead of an open picker.
+    private var empty: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Add your finals date to see a live countdown.")
+                .font(.footnote)
+                .foregroundStyle(Theme.muted)
+            Button("Set finals date") { openEditor(nil) }
+                .buttonStyle(.borderedProminent)
+        }
+    }
+
+    /// The picker, to set a first date or change the one you have.
     private func editor(hasDate: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(hasDate ? "Update your finals date."
-                 : "Add your finals date to see a live countdown.")
+            Text(hasDate ? "Update your finals date." : "Pick the first day of your finals.")
                 .font(.footnote)
                 .foregroundStyle(Theme.muted)
 
@@ -101,10 +117,10 @@ struct FinalsCountdown: View {
                 if hasDate {
                     Button("Clear", action: clear)
                         .buttonStyle(.bordered)
-                    Button("Cancel") {
-                        editing = false
-                        failed = false
-                    }
+                }
+                Button("Cancel") {
+                    editing = false
+                    failed = false
                 }
             }
 
@@ -117,7 +133,7 @@ struct FinalsCountdown: View {
         }
     }
 
-    /// Start the picker on the saved day: the web's `openEdit`.
+    /// Open the picker on the saved day, or today when there isn't one.
     private func openEditor(_ saved: String?) {
         // `deadlineDayStart` turns "2026-12-10" into local midnight that day.
         draft = deadlineDayStart(makeDeadline(saved, nil)) ?? .now
@@ -133,15 +149,9 @@ struct FinalsCountdown: View {
         if !failed { editing = false }
     }
 
-    /// Remove the date. The card goes back to asking for one.
-    /// CHANGED in Phase 9b+ (D-58): the picker goes back to today as well.
-    /// It used to keep showing the date you'd just cleared, which looked as
-    /// if Clear hadn't worked. (The web keeps it; here it reads better fresh.)
+    /// Remove the date. Close the picker so the next tap can't re-save it.
     private func clear() {
         failed = !store.setFinalsDate(nil)
-        if !failed {
-            editing = false
-            draft = .now
-        }
+        if !failed { editing = false }
     }
 }
