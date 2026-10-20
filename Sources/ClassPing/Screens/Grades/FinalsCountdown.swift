@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Grades/FinalsCountdown.swift
-//  Phase:   9c (finals countdown and the CSV report)
+//  Phase:   9c (finals countdown and the CSV report), changed in 9b+ (D-58)
 //  Ports:   components/FinalsCountdown.tsx
 //
 //  Summary: The Days to Finals card on Grades: a live count of the days left
@@ -134,8 +134,14 @@ struct FinalsCountdown: View {
     }
 
     /// Remove the date. The card goes back to asking for one.
+    /// CHANGED in Phase 9b+ (D-58): the picker goes back to today as well.
+    /// It used to keep showing the date you'd just cleared, which looked as
+    /// if Clear hadn't worked. (The web keeps it; here it reads better fresh.)
     private func clear() {
         failed = !store.setFinalsDate(nil)
-        if !failed { editing = false }
+        if !failed {
+            editing = false
+            draft = .now
+        }
     }
 }

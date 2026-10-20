@@ -1,16 +1,29 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Courses/CourseFormView.swift
 //  Phase:   5b (classes: add and edit), changed in 7a (the reminder footer)
+//           and 9b+ (accent fields and keyboard, D-55)
 //  Ports:   components/ClassForm.tsx, app/class/new/page.tsx and
 //           app/class/[id]/edit/page.tsx (one form, two modes)
 //
 //  Summary: The form for a new class, and for editing one. Only a name is
 //           required. A class meets at one or more times (MeetingFields), or
 //           "Schedule not known yet" saves it with no times. New classes can
-//           be saved one after another with "Save & add another".
+//           be saved one after another with "Save & add another". Since
+//           9b+ every field wears your accent, and Done or a swipe down puts
+//           the keyboard away (the credit hours pad has no return key).
 //
 
 import SwiftUI
+
+// NEW in Phase 9b+
+/// Every field in the class form that can hold the keyboard. The meetings'
+/// label and room fields live in MeetingFields, one pair per meeting, so their
+/// cases carry the meeting's id: `.room(id)` is one meeting's room field.
+/// An enum case can carry a value like this (5b's sheet enum did the same).
+enum CourseField: Hashable {
+    case name, instructor, credits, notes
+    case label(UUID), room(UUID)
+}
 
 struct CourseFormView: View {
     @Environment(Store.self) private var store
@@ -40,6 +53,10 @@ struct CourseFormView: View {
     /// Keep a new class's identity across a failed save, so Retry updates the
     /// in-memory copy instead of adding a duplicate.
     @State private var draftID = UUID()
+
+    // NEW in Phase 9b+: which field has the keyboard, so Done can put it away.
+    // MeetingFields gets `$focus` too, so Done also works in a room or label.
+    @FocusState private var focus: CourseField?
 
     /// Starting values, from the class being edited or the web's defaults for
     /// a new one (indigo, a 15-minute reminder, one empty meeting).
@@ -74,6 +91,8 @@ struct CourseFormView: View {
             Section {
                 TextField("e.g. Biology", text: $name)
                     .textInputAutocapitalization(.words)
+                    .focused($focus, equals: .name)     // NEW in Phase 9b+
+                    .inputField(accent)                 // NEW in Phase 9b+
             } header: {
                 Text("Class name (required)")
             }
@@ -96,16 +115,24 @@ struct CourseFormView: View {
             }
             // `$meetings` hands MeetingFields a binding to the whole list.
             if !unscheduled {
-                MeetingFields(meetings: $meetings, accent: accent)
+                // CHANGED in Phase 9b+: MeetingFields shares the form's focus.
+                MeetingFields(meetings: $meetings, accent: accent, focus: $focus)
             }
 
             // MARK: More details
+            // CHANGED in Phase 9b+: each field has a focus id and the accent well.
             Section("More details (optional)") {
                 TextField("Teacher", text: $instructor)
+                    .focused($focus, equals: .instructor)
+                    .inputField(accent)
                 TextField("Credit hours", text: $credits)
                     .keyboardType(.decimalPad)
+                    .focused($focus, equals: .credits)
+                    .inputField(accent)
                 TextField("Notes: office hours, what to bring…", text: $notes, axis: .vertical)
                     .lineLimit(2...6)
+                    .focused($focus, equals: .notes)
+                    .inputField(accent)
             }
 
             Section("Subject color") {
@@ -146,6 +173,8 @@ struct CourseFormView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Theme.canvas)
+        // NEW in Phase 9b+: swipe down, or tap Done above the keys.
+        .keyboardDismissable { focus = nil }
         .navigationTitle(editing == nil ? "New Class" : "Edit Class")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

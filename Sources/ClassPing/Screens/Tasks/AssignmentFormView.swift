@@ -1,12 +1,15 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Tasks/AssignmentFormView.swift
 //  Phase:   4a (task logic and the add form), changed in 7c (start on a class)
+//           and 9b+ (accent fields and keyboard, D-55)
 //  Ports:   app/tasks/new/page.tsx and app/tasks/[id]/edit/page.tsx (one form, two modes)
 //
 //  Summary: The form for a new assignment, exam or reminder, and for editing
 //           one. Only a title is required: no class means Inbox, no date means
 //           "No deadline", and no time means all-day. Since 7c a new one can
 //           start with its class already picked, as the post-class prompt does.
+//           Since 9b+ the title and notes wear your accent, and Done or a
+//           swipe down puts the keyboard away.
 //
 
 import SwiftUI
@@ -37,6 +40,12 @@ struct AssignmentFormView: View {
     @State private var repeatRule: Assignment.RepeatRule?
     @State private var hasRepeatEnd: Bool
     @State private var repeatEnd: Date
+
+    // NEW in Phase 9b+: which field has the keyboard, so Done can put it away.
+    // The notes field grows onto new lines, so its Return key types a new
+    // line instead of closing the keyboard: Done is the way out.
+    private enum Field { case title, notes }
+    @FocusState private var focus: Field?
 
     /// Sets the starting value of every field. A view's `@State` normally starts
     /// from a fixed value; to start it from the assignment being edited, the
@@ -73,6 +82,8 @@ struct AssignmentFormView: View {
     }
 
     var body: some View {
+        let accent = store.profile.accent   // NEW in Phase 9b+
+
         Form {
             // MARK: Class
             // `selection: $courseID` binds the picker to the form's state: the
@@ -102,6 +113,8 @@ struct AssignmentFormView: View {
             Section(nameHeading) {
                 TextField(namePlaceholder, text: $title)
                     .textInputAutocapitalization(.sentences)
+                    .focused($focus, equals: .title)     // NEW in Phase 9b+
+                    .inputField(accent)                  // NEW in Phase 9b+
             }
 
             // MARK: Due
@@ -174,11 +187,15 @@ struct AssignmentFormView: View {
                 TextField("What the brief asks for, pages to read, what to bring…",
                           text: $notes, axis: .vertical)
                     .lineLimit(3...8)
+                    .focused($focus, equals: .notes)     // NEW in Phase 9b+
+                    .inputField(accent)                  // NEW in Phase 9b+
             }
         }
         // Let the warm canvas show through instead of the system grey.
         .scrollContentBackground(.hidden)
         .background(Theme.canvas)
+        // NEW in Phase 9b+: swipe down, or tap Done above the keys.
+        .keyboardDismissable { focus = nil }
         .navigationTitle(editing == nil ? "New Assignment" : "Edit Assignment")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

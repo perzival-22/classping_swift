@@ -1,6 +1,7 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Grades/TermReportCard.swift
-//  Phase:   9c (finals countdown and the CSV report)
+//  Phase:   9c (finals countdown and the CSV report), changed in 9b+
+//           (a byte-order mark for Excel)
 //  Ports:   ExportReportButton in app/grades/page.tsx (its CSV half) and
 //           downloadGradeReport in lib/report.ts
 //
@@ -29,7 +30,11 @@ struct GradeReportFile: Transferable {
             // The app's temporary folder, which iOS empties on its own. The
             // file name is the one the web downloads.
             let url = URL.temporaryDirectory.appending(path: "classping-grades.csv")
-            let data = Data(file.report.csv(at: .now).utf8)
+            // CHANGED in Phase 9b+: "\u{FEFF}" first, the byte-order mark.
+            // Excel on Windows reads a CSV without it in the old local code
+            // page and garbles accented names; Numbers and Sheets skip it.
+            // The web's `gradeReportBlob` adds the same three bytes.
+            let data = Data(("\u{FEFF}" + file.report.csv(at: .now)).utf8)
             // `try?` turns a failed write into nil. This closure is allowed to
             // throw, and throwing tells the share sheet the file couldn't be
             // made, instead of handing over one that isn't there.

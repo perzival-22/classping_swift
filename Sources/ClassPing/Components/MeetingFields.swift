@@ -1,13 +1,14 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Components/MeetingFields.swift
-//  Phase:   5b (classes: add and edit)
+//  Phase:   5b (classes: add and edit), changed in 9b+ (accent fields, D-55)
 //  Ports:   components/MeetingFields.tsx (newMeeting, MeetingFields)
 //
 //  Summary: The "when does this class meet?" part of the class form, one
 //           section per meeting: day buttons with shortcuts, start and end
 //           times with duration shortcuts, and a room. Extra meetings get a
 //           name ("Lab") and a Remove button. Edits go straight back into the
-//           form's list through a binding.
+//           form's list through a binding. Since 9b+ the label and room
+//           fields wear your accent and share the class form's focus.
 //
 
 import SwiftUI
@@ -24,6 +25,12 @@ struct MeetingFields: View {
     /// class form owns the list: this view edits it in place.
     @Binding var meetings: [ClassMeeting]
     let accent: Profile.Accent
+
+    // NEW in Phase 9b+
+    /// The class form's focus, handed down as `$focus`. It works like a
+    /// `@Binding`: this view marks its own fields with it, and when the form's
+    /// Done sets the focus to nil, the keyboard leaves these fields too.
+    var focus: FocusState<CourseField?>.Binding
 
     /// One day shortcut: what the button says and the days it picks.
     private struct DayPreset: Hashable {
@@ -54,8 +61,11 @@ struct MeetingFields: View {
                             .foregroundStyle(Theme.muted)
                     } else {
                         HStack {
+                            // CHANGED in Phase 9b+: a focus id and the accent well.
                             TextField("Meeting label (optional), e.g. Lab",
                                       text: optionalText($meeting.label, limit: 80))
+                                .focused(focus, equals: .label(meeting.id))
+                                .inputField(accent)
                             // `.borderless` keeps this button from turning the
                             // whole row into one big tap target.
                             Button("Remove", role: .destructive) {
@@ -109,8 +119,11 @@ struct MeetingFields: View {
                     }
                 }
 
+                // CHANGED in Phase 9b+: a focus id and the accent well.
                 TextField("Room (optional), e.g. Science 204",
                           text: optionalText($meeting.room, limit: 200))
+                    .focused(focus, equals: .room(meeting.id))
+                    .inputField(accent)
             } header: {
                 Text(meetings.count > 1 ? "Meeting \(position(of: meeting) + 1)" : "When does this class meet?")
             } footer: {

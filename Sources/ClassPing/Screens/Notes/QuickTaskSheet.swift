@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Notes/QuickTaskSheet.swift
-//  Phase:   8d (notes that connect)
+//  Phase:   8d (notes that connect), changed in 9b+ (accent field, D-55)
 //  Ports:   QuickTaskCard in app/classes/page.tsx
 //
 //  Summary: The small form a note's bell and plus open. It files a reminder
@@ -8,6 +8,8 @@
 //           note's class without leaving the note: only the words, the day
 //           and a time if it matters are left to fill in. A reminder needs
 //           its words; a blank assignment is named after its class.
+//           Since 9b+ the title wears your accent, and Done or a swipe down
+//           puts the keyboard away.
 //
 
 import SwiftUI
@@ -63,6 +65,7 @@ struct QuickTaskSheet: View {
                         // Return adds it, when it can be added.
                         .submitLabel(.done)
                         .onSubmit { add() }
+                        .inputField(store.profile.accent)   // NEW in Phase 9b+
                     // Assignment, quiz or exam. Not for a reminder.
                     if !isReminder {
                         Picker("Type", selection: $type) {
@@ -90,6 +93,8 @@ struct QuickTaskSheet: View {
             // The warm canvas instead of the system grey, as in the task form.
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
+            // NEW in Phase 9b+: swipe down, or tap Done above the keys.
+            .keyboardDismissable { titleFocused = false }
             .navigationTitle(isReminder ? "Quick reminder" : "Quick assignment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

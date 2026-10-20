@@ -1,6 +1,6 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Screens/Grades/GradeFormView.swift
-// Phase: 9a, changed in 9b (D-54)
+// Phase: 9a, changed in 9b (D-54) and 9b+ (the class sheet)
 // Ports: app/grades/new, app/grades/[id]/edit and components/GradeFields.
 // Summary: One sheet for adding and editing. A failed save keeps the draft.
 // Since 9b the fields wear your accent, and the keyboard can be swiped away
@@ -144,7 +144,19 @@ struct GradeFormView: View {
                     title = next.rawValue.capitalized
                 }
             }
-            .sheet(isPresented: $showCourseForm) { CourseFormView() }
+            // CHANGED in Phase 9b+: in its own NavigationStack, like every
+            // other place that opens the class form. Without one the sheet had
+            // no bar, so no Save, no Cancel, and no Done over the keyboard.
+            .sheet(isPresented: $showCourseForm) {
+                NavigationStack {
+                    CourseFormView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cancel") { showCourseForm = false }
+                            }
+                        }
+                }
+            }
         }
     }
 
