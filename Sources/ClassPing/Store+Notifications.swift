@@ -1,13 +1,14 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Notifications.swift
-//  Phase:   7a (reminders ring)
+//  Phase:   7a (reminders ring), changed in 10a (the study timer's alerts)
 //  Ports:   lib/notifications.ts (permission, showing a notification) and the
 //           bookkeeping of the reminder loop in lib/store.tsx (the fired map)
 //
 //  Summary: Hands the reminder plan to iOS. Each sync works out what has
 //           already rung, builds the plan, and replaces iOS's list of waiting
 //           notifications with it. Also asks for permission, once.
-//           ClassPingApp.swift decides when to sync.
+//           ClassPingApp.swift decides when to sync. Since 10a it also holds
+//           the study timer's block-end alerts, which the sync leaves alone.
 //
 
 import Foundation
@@ -85,6 +86,13 @@ extension Store {
     private static var reminderSyncInProgress = false
     private static var reminderSyncRequested = false
 
+    // NEW in Phase 10a
+    /// How many study alerts this run of the app has handed iOS. A `static`
+    /// lives as long as the app's process, so after a relaunch it's 0 again:
+    /// a session can't outlive the app, and the first sync then clears any
+    /// alerts it left behind.
+    private static var studyAlertCount = 0
+
     /// Rebuilds the plan and hands it to iOS. Safe to call as often as you
     /// like: each call replaces the whole waiting list, and a reminder's id
     /// stops it ringing twice. The web's 30-second loop, done once per change.
@@ -119,10 +127,15 @@ extension Store {
         let fired = settledFired(oldFired, scheduled: scheduled, now: now, liveTaskIDs: liveIDs)
 
         // 2. What should ring from now on.
+        // CHANGED in Phase 10a: iOS keeps only 64 waiting notifications, so
+        // while a study session's alerts are waiting, the plan makes room
+        // for them by dropping its furthest reminders (the plan is soonest
+        // first). Dropped ones aren't recorded below, so they stay eligible.
         let quiet = normalizeQuietHours(start: profile.quietStart, end: profile.quietEnd)
-        let plan = reminderPlan(courses: liveCourses, tasks: liveAssignments,
-                                postClass: profile.postClassNudge, quiet: quiet,
-                                fired: fired, now: now)
+        let room = max(0, maxPendingReminders - Store.studyAlertCount)
+        let plan = Array(reminderPlan(courses: liveCourses, tasks: liveAssignments,
+                                      postClass: profile.postClassNudge, quiet: quiet,
+                                      fired: fired, now: now).prefix(room))
 
         // 3. Permission, asked the first time there is something to ring (D-30).
         var allowed = false
@@ -152,8 +165,18 @@ extension Store {
         defaults.set(times, forKey: Store.scheduledKey)
 
         // 5. Replace iOS's waiting list with the new plan.
+        // CHANGED in Phase 10a: every waiting notification goes except a
+        // running session's study alerts. Before, this cleared everything,
+        // so editing a task mid-session silenced the timer.
         let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests()
+        if Store.studyAlertCount > 0 {
+            let waiting = await center.pendingNotificationRequests()
+            center.removePendingNotificationRequests(withIdentifiers: waiting
+                .map(\.identifier)
+                .filter { !$0.hasPrefix(studyAlertPrefix) })
+        } else {
+            center.removeAllPendingNotificationRequests()
+        }
         guard allowed else { return }
         for r in plan {
             // A rejected one-off must stay eligible for the next sync, even
@@ -204,6 +227,54 @@ extension Store {
             // number (1 = Sunday) itself, so nothing converts days by hand.
             let parts = cal.dateComponents([.weekday, .hour, .minute], from: first)
             return UNCalendarNotificationTrigger(dateMatching: parts, repeats: true)
+        }
+    }
+
+    // MARK: - The study timer's alerts (NEW in Phase 10a)
+
+    /// Replaces the study timer's waiting alerts with `alerts`: the running
+    /// session's block ends, or none (paused, stopped, done or closed). The
+    /// web shows these with `showReminder` when it notices a block ended;
+    /// handing them to iOS ahead of time is what makes them ring in a pocket.
+    func scheduleStudyAlerts(_ alerts: [StudyAlert]) async {
+        let center = UNUserNotificationCenter.current()
+        // Take away the last set first. Only study ids: reminders stay.
+        let waiting = await center.pendingNotificationRequests()
+        center.removePendingNotificationRequests(withIdentifiers: waiting
+            .map(\.identifier)
+            .filter { $0.hasPrefix(studyAlertPrefix) })
+
+        // The first session asks for permission, if iOS never has (D-30).
+        var allowed = false
+        if !alerts.isEmpty {
+            allowed = await requestNotificationAccess()
+        }
+        let before = Store.studyAlertCount
+        Store.studyAlertCount = allowed ? alerts.count : 0
+
+        if allowed {
+            for alert in alerts {
+                // A newer call (pause, stop) has taken over: add nothing stale.
+                // `.task(id:)` cancels this task when the session changes.
+                guard !Task.isCancelled else { return }
+                let content = UNMutableNotificationContent()
+                content.title = alert.title
+                content.body = alert.body
+                content.sound = .default
+                content.threadIdentifier = "study"
+                // A countdown trigger: ring this many seconds from now, to the
+                // second, which a block end needs.
+                let wait = max(1, alert.at.timeIntervalSinceNow)
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: wait, repeats: false)
+                _ = try? await center.add(UNNotificationRequest(identifier: alert.id,
+                                                                content: content, trigger: trigger))
+            }
+        }
+
+        // iOS keeps only the 64 soonest. When the number of study alerts
+        // changes, rebuild the reminders so they make room, or take it back.
+        if Store.studyAlertCount != before {
+            await syncReminders()
         }
     }
 }

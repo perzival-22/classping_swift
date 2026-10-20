@@ -1,6 +1,7 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Planning.swift
-//  Phase:   7b (one task's reminders, and planning the work)
+//  Phase:   7b (one task's reminders, and planning the work), changed in
+//           10a (study sessions)
 //  Ports:   lib/store.tsx (planTask, removeTaskPlan) and the updateTask calls
 //           made by TaskReminderCard and ExamPrepCard in
 //           components/TaskReminders.tsx
@@ -10,6 +11,7 @@
 //           checklist steps; and the day you mean to work on it. Each action
 //           saves straight away, and 7a's reminder sync notices the change
 //           by itself, so a snooze silences the phone within a second.
+//           Since 10a it also records the study timer's finished blocks.
 //
 
 import Foundation
@@ -77,6 +79,21 @@ extension Store {
     /// "Focused" row, `studyMinutes(studySessions, { taskId })` on the web.
     func focusedMinutes(_ id: UUID) -> Int {
         studyMinutes(studySessions, taskID: id)
+    }
+
+    // NEW in Phase 10a
+    /// Records one finished focus block: `addStudySession` in lib/store.tsx.
+    /// Minutes are kept between 1 and 240, as the web does. `completedAt` is
+    /// when the block really ended, which can be a while before the phone
+    /// noticed (D-62). Unlike a grade, nothing rolls back if the write fails:
+    /// there's no form to retry from, so the session stays in memory, the
+    /// screen shows the save-failure line, and the next save that works keeps it.
+    func addStudySession(minutes: Int, assignmentID: UUID?, courseID: UUID?,
+                         mode: StudySession.Mode, completedAt: Date = .now) {
+        studySessions.append(StudySession(assignmentID: assignmentID, courseID: courseID,
+                                          minutes: min(240, max(1, minutes)),
+                                          completedAt: completedAt, mode: mode))
+        save()
     }
 
     // MARK: - Planning the work

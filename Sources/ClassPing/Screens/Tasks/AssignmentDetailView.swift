@@ -1,7 +1,7 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Tasks/AssignmentDetailView.swift
-//  Phase:   4b (the Tasks screen), changed in 7b (the planning cards) and
-//           8d (linked notes, and Open the class)
+//  Phase:   4b (the Tasks screen), changed in 7b (the planning cards),
+//           8d (linked notes, and Open the class) and 10a (Start studying)
 //  Ports:   app/tasks/[id]/page.tsx (header, Complete, notes, details,
 //           exam prep, reminders, Plan the work, checklist, linked notes,
 //           Open the class, delete)
@@ -13,8 +13,9 @@
 //           on it. Since 8d, the notes linked to it (open, unlink, link one
 //           more or start a new one) and a row that opens its class's notes.
 //           Edit opens the form in a sheet; Delete moves it to Recently
-//           Deleted and returns to the list, where Undo is offered. The
-//           study timer and grade prompt join later.
+//           Deleted and returns to the list, where Undo is offered. Since
+//           10a, Start studying opens the study timer beside Complete. The
+//           grade prompt joins later.
 //
 
 import SwiftUI
@@ -38,6 +39,9 @@ struct AssignmentDetailView: View {
     /// NEW in Phase 8d: the note New note just started, while it's open
     /// (the Notes tab's `startedNote`, 8a).
     @State private var startedNote: UUID?
+
+    /// NEW in Phase 10a: true while the study timer's sheet is open.
+    @State private var studying = false
 
     var body: some View {
         // Gone (just deleted, or never existed): a short note instead of a crash.
@@ -95,23 +99,47 @@ struct AssignmentDetailView: View {
 
                 // MARK: What to do about it
                 // Brand gradient while open; a quiet grey "Mark as open" once done.
-                Button {
-                    store.toggleAssignment(a.id)
-                } label: {
-                    Label(a.done ? "Mark as open" : "Complete", systemImage: "checkmark")
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                        .foregroundStyle(a.done ? Theme.muted : Color.white)
-                        .background {
-                            if a.done {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.surface2)
-                            } else {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.brandGradient(accent))
+                // CHANGED in Phase 10a: in a row with Start studying, as on the
+                // web, for open work that isn't a reminder (nothing to study).
+                HStack(spacing: 10) {
+                    Button {
+                        store.toggleAssignment(a.id)
+                    } label: {
+                        Label(a.done ? "Mark as open" : "Complete", systemImage: "checkmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .foregroundStyle(a.done ? Theme.muted : Color.white)
+                            .background {
+                                if a.done {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.surface2)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Theme.brandGradient(accent))
+                                }
                             }
+                    }
+                    .buttonStyle(.plain)
+
+                    if !a.done && a.kind != .reminder {
+                        Button {
+                            studying = true
+                        } label: {
+                            Label("Start studying", systemImage: "timer")
+                                .font(.system(size: 15, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .foregroundStyle(Theme.ink)
+                                .background(Theme.surface2,
+                                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
+                // NEW in Phase 10a: the timer, in a sheet that opens full height.
+                .sheet(isPresented: $studying) {
+                    StudyTimerView(assignment: a)
+                        .presentationDetents([.large])
+                }
 
                 // MARK: The brief
                 if let notes = a.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {

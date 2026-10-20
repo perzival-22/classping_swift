@@ -1,6 +1,7 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/ClassPingApp.swift
-//  Phase:   0 (housekeeping), changed in 7a (reminders) and 7c (taps)
+//  Phase:   0 (housekeeping), changed in 7a (reminders), 7c (taps) and
+//           10a (a study alert's tap)
 //  Ports:   app/layout.tsx (the root that wraps every screen), when the
 //           reminder loop in lib/store.tsx runs, and the notificationclick
 //           handler in public/sw.js
@@ -9,7 +10,8 @@
 //           shares and hands it to every screen through the SwiftUI
 //           environment. Since 7a it also keeps iOS's reminders in step with
 //           the store, and lets them show while the app is open. Since 7c a
-//           tap on one tells the store where to go.
+//           tap on one tells the store where to go. Since 10a a tap on a
+//           study timer's alert just opens the app as you left it.
 //
 import SwiftUI
 import UIKit
@@ -121,6 +123,12 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping @Sendable () -> Void) {
         guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
+            completionHandler()
+            return
+        }
+        // NEW in Phase 10a: a study alert has nowhere to send you. The timer
+        // is still on screen if the session is running, so leave it there.
+        guard !response.notification.request.identifier.hasPrefix(studyAlertPrefix) else {
             completionHandler()
             return
         }
