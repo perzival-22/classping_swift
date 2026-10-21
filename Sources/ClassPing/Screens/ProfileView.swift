@@ -1,16 +1,18 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/ProfileView.swift
 //  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card),
-//           11a (the settings: profile, grading scale, semester) and 11b+c
+//           11a (the settings: profile, grading scale, semester), 11b+c
 //           (the calendar file, and your data: backups, Recently Deleted,
-//           clearing)
+//           clearing) and 13a (importing from your school)
 //  Ports:   app/settings/page.tsx, moved into its own tab (D-19): the
-//           Profile, Appearance, Reminders (with its calendar export), Grading
-//           scale and Semester cards, and the backup rows of the Account card
+//           Profile, Appearance, Reminders (with its calendar export), Import
+//           from your school, Grading scale and Semester cards, and the backup
+//           rows of the Account card
 //
 //  Summary: The Profile tab is ClassPing's settings: you, the look, your
-//           reminders and calendar, how letters are worked out, the term, and
-//           your data. Your account arrives with sync, your level in Phase 12.
+//           reminders and calendar, importing from your school, how letters
+//           are worked out, the term, and your data. Your account arrives
+//           with sync, your level in Phase 12.
 //
 
 import SwiftUI
@@ -84,6 +86,11 @@ struct ProfileView: View {
                 // NEW in Phase 11b+c: the timetable as a .ics file. The web
                 // puts this inside its Reminders card; here it's its own card.
                 CalendarCard()
+
+                // MARK: Import from your school
+                // NEW in Phase 13a: a calendar or schedule file, as on the
+                // web's Settings, between the calendar and the grading scale.
+                ImportCard()
 
                 // MARK: Grading scale
                 // NEW in Phase 11a: moved here from the Grades screen (D-67).

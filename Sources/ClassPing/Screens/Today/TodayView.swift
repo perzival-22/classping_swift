@@ -2,7 +2,7 @@
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Today/TodayView.swift
 //  Phase:   6b (your work and your classes), after 6a (the picked day),
 //           5a (the week) and 5b (class details); changed in 7c (the
-//           just-ended banner)
+//           just-ended banner) and 13a (Import my schedule)
 //  Ports:   app/home/page.tsx (the greeting, the quote, the just-ended
 //           banner, the picked day's classes, every "nothing here" message,
 //           the term glance, the assignments and My Classes) and
@@ -13,17 +13,19 @@
 //           handle) and it opens into the full timetable. Below it, the quote
 //           banner, a "just finished" banner for half an hour after a class,
 //           the picked day's classes, and then your term at a glance, your
-//           next assignments and your classes, with Edit and Delete.
+//           next assignments and your classes, with Edit and Delete. Before
+//           your first class, "Skip the typing" offers the import (13a).
 //
 
 import SwiftUI
 
 /// One presentation at a time: a tapped meeting's details, a class's editor,
-/// or the form for a new class. Each case carries what its sheet needs.
+/// the form for a new class, or the import. Each case carries what its sheet needs.
 enum TodaySheet: Identifiable {
     case meeting(OpenedMeeting)
     case editCourse(Course)
     case newCourse                    // NEW in Phase 6a: "Add a class manually"
+    case importSchedule               // NEW in Phase 13a: "Import my schedule"
 
     var id: String {
         switch self {
@@ -33,6 +35,8 @@ enum TodaySheet: Identifiable {
             "course-\(course.id)"
         case .newCourse:              // NEW in Phase 6a
             "new-course"
+        case .importSchedule:         // NEW in Phase 13a
+            "import"
         }
     }
 }
@@ -175,6 +179,8 @@ struct TodayView: View {
                             }
                         }
                 }
+            case .importSchedule:     // NEW in Phase 13a
+                ImportSheet()
             }
         }
     }
@@ -459,21 +465,49 @@ struct TodayView: View {
     // NEW in Phase 6a
 
     /// Before the first class: one job, get a class in. The web's first-run
-    /// card leads with "Import my schedule"; importing arrives in Phase 13,
-    /// so for now the manual route is the button, above the three steps.
+    /// card: "Skip the typing" leads with Import my schedule, and the manual
+    /// route stays one tap away under it, because for three classes typing
+    /// them in is genuinely faster. Then the three steps.
+    // CHANGED in Phase 13a: the card, with the import
     private func firstRun(_ accent: Profile.Accent) -> some View {
         VStack(spacing: 10) {
-            Button {
-                sheet = .newCourse
-            } label: {
-                Text("Add a class manually")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(Theme.brandGradient(accent), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-                    .shadow(color: Theme.brand(accent).opacity(0.3), radius: 10, x: 0, y: 6)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Skip the typing")
+                    .font(.system(size: 22, weight: .semibold))
+                Text("Your school already has your timetable. Bring it over and ClassPing takes it from there, your week, your deadlines, and a nudge before each one.")
+                    .font(.system(size: 14))
+                    .opacity(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // White on the gradient in both themes, as on the web.
+                Button {
+                    sheet = .importSchedule
+                } label: {
+                    Text("Import my schedule")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.brand(accent))
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 10)
+
+                Button {
+                    sheet = .newCourse
+                } label: {
+                    Text("Add a class manually")
+                        .font(.system(size: 14.5, weight: .semibold))
+                        .opacity(0.9)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.brandGradient(accent), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: Theme.brand(accent).opacity(0.3), radius: 10, x: 0, y: 6)
             .padding(.bottom, 6)
 
             onboardStep(1, "Import or add your classes",

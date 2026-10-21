@@ -8,7 +8,7 @@ trap 'rm -rf -- "$probe_dir"' EXIT
 cd "$probe_dir"
 swift package init --type library --name CPLogic >/dev/null
 rm Sources/CPLogic/*.swift Tests/CPLogicTests/*.swift
-for source in Models Records Profile Store Store+Persistence Store+Assignments Store+Courses Assignment+Deadline Assignment+TaskView Models+Reminders Store+Planning Store+Notes Store+Grades Store+Profile Models+Backup Store+Backup Store+Trash; do
+for source in Models Records Profile Store Store+Persistence Store+Assignments Store+Courses Assignment+Deadline Assignment+TaskView Models+Reminders Store+Planning Store+Notes Store+Grades Store+Profile Models+Backup Store+Backup Store+Trash Store+Import; do
     cp "$project_root/Sources/ClassPing/$source.swift" Sources/CPLogic/
 done
 cp "$project_root"/Sources/ClassPing/Logic/*.swift Sources/CPLogic/
