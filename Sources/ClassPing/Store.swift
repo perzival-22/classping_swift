@@ -4,7 +4,8 @@
 //
 //  Summary: The one place the app's data lives while it runs, plus a sample
 //           store to show until you add your own classes. Since 7c it also
-//           holds where a tapped notification wants to take you.
+//           holds where a tapped notification wants to take you, and since
+//           11b+c your progress from a backup and the copy a restore can undo.
 //
 
 
@@ -24,6 +25,11 @@ final class Store {
     var studySessions: [StudySession] = [] // NEW in Phase 1
     var profile = Profile()
 
+    /// Trophies, XP, your pet and the weekly boss, exactly as a backup had
+    /// them. Nothing shows them until Phase 12; keeping them means a web
+    /// backup that passes through the phone loses nothing (D-74).
+    var game = GameBlobs()               // NEW in Phase 11b+c
+
     /// True when the last save to the phone failed. The screens must say so,
     /// because "Saved on this device" has to be true when the app claims it.
     var lastSaveFailed = false           // NEW in Phase 1
@@ -35,6 +41,11 @@ final class Store {
     /// Today's "Log it", taken by RootView, which goes there and sets it back
     /// to nil. Never saved: a tap is about now, not the next launch.
     var route: AppRoute? = nil           // NEW in Phase 7c
+
+    /// Everything as it was just before the last backup restore, so the Undo
+    /// bar can put it back exactly. Kept only while the app runs, like the
+    /// web's `preRestoreSnapshot`; nil when there's nothing to undo.
+    var preRestore: PlannerDocument? = nil   // NEW in Phase 11b+c
 }
 
 extension Store {

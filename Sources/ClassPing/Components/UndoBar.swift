@@ -1,13 +1,15 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Components/UndoBar.swift
-//  Phase:   4b (the Tasks screen); Today uses it too from Phase 6b
+//  Phase:   4b (the Tasks screen); Today uses it too from Phase 6b;
+//           changed in 11b+c (a restore can be undone here too)
 //  Ports:   components/StatusChrome.tsx (the undo strip) and the
 //           UNDO_WINDOW_MS timer in lib/store.tsx
 //
 //  Summary: The bar that offers to take a delete back, packaged as a view
 //           modifier. A screen that can delete things adds `.undoBar()`: the
 //           bar sits above the tab bar while there's a delete to undo, and
-//           goes away by itself 8 seconds later.
+//           goes away by itself 8 seconds later. After a backup restore it
+//           says "Backup restored" instead, and waits until you close it.
 //
 
 import SwiftUI
@@ -24,9 +26,19 @@ struct UndoBar: ViewModifier {
     func body(content: Content) -> some View {
         content
             // The bar sits just above the tab bar while there's a delete to undo.
+            // CHANGED in Phase 11b+c: a restore takes the bar while it can be
+            // undone. It's the bigger, rarer event, so it wins when both are
+            // waiting, and it has no timer: undoing a Replace isn't something
+            // to lose by looking away (the web's StatusChrome says the same).
             .safeAreaInset(edge: .bottom) {
-                if let undo = store.pendingUndo {
-                    bar(undo, store.profile.accent)
+                if store.preRestore != nil {
+                    bar("Backup restored", store.profile.accent,
+                        undo: { _ = store.undoRestore() },
+                        dismiss: { store.dismissRestoreSnapshot() })
+                } else if let undo = store.pendingUndo {
+                    bar(undo.label, store.profile.accent,
+                        undo: { store.undoDelete() },
+                        dismiss: { store.dismissUndo() })
                 }
             }
             // Make the offer go away 8 seconds after the delete (UNDO_WINDOW_MS).
@@ -47,20 +59,22 @@ struct UndoBar: ViewModifier {
             }
     }
 
-    /// The bar itself: what went, Undo, and a close button.
-    private func bar(_ undo: PendingUndo, _ accent: Profile.Accent) -> some View {
+    /// The bar itself: what happened, Undo, and a close button.
+    // CHANGED in Phase 11b+c: it takes the words and the two actions, so the
+    // same bar serves a delete and a restore. `@escaping` says the closures
+    // are kept and run later (when a button is tapped), not right away.
+    private func bar(_ label: String, _ accent: Profile.Accent,
+                     undo: @escaping () -> Void, dismiss: @escaping () -> Void) -> some View {
         HStack(spacing: 12) {
-            Text(undo.label)
+            Text(label)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)
             Spacer()
-            Button("Undo") { store.undoDelete() }
+            Button("Undo", action: undo)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(Theme.brand(accent))
-            Button {
-                store.dismissUndo()
-            } label: {
+            Button(action: dismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(Theme.faint)

@@ -1,8 +1,10 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Models+Reminders.swift
-//  Phase:   7a (reminders ring), changed in 7b (StudySession)
+//  Phase:   7a (reminders ring), changed in 7b (StudySession) and 11b+c
+//           (the calendar file)
 //  Ports:   nothing new: it connects the models to Logic/Reminders.swift,
-//           Logic/ReminderPlan.swift and, since 7b, Logic/Planning.swift
+//           Logic/ReminderPlan.swift, since 7b Logic/Planning.swift and,
+//           since 11b+c, Logic/CalendarExport.swift
 //
 //  Summary: Signs Course and Assignment up for the reminder logic, and
 //           StudySession for the study-minute totals. Each already has every
@@ -25,3 +27,8 @@ extension Assignment: Remindable {}
 /// study timer in Phase 10; until then every total is 0.)
 // NEW in Phase 7b
 extension StudySession: StudyRecord {}
+
+/// Course also has `instructor`, `notes` and `extraReminders`, the three
+/// details the calendar file writes, so the calendar can read it too.
+// NEW in Phase 11b+c
+extension Course: CalendarClass {}

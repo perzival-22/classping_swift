@@ -1,11 +1,14 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Store+Persistence.swift
-//  Phase:   1 (save and load)
+//  Phase:   1 (save and load), changed in 11b+c (progress, replaceAll,
+//           and Recently Deleted's 30 days)
 //  Ports:   lib/store.tsx (the localStorage cache, key "classping.v1:<user>")
 //
 //  Summary: Saves everything to Documents/planner.json after each change and
 //           reads it back when the app opens. A file that can't be read is set
 //           aside, never overwritten, so a bug can't erase users planner.
+//           Since 11b+c opening the app also clears out deleted items older
+//           than 30 days.
 //
 import Foundation
 
@@ -13,7 +16,9 @@ import Foundation
 /// Rule for later phases: a property added here (or to any model) must be
 /// Optional, or old files on the phone won't load. Optional properties that are
 /// missing from the file simply come back as nil.
-struct PlannerDocument: Codable {
+// CHANGED in Phase 11b+c: Equatable, so a test can check an Undo put back
+// exactly what was there.
+struct PlannerDocument: Codable, Equatable {
     var courses: [Course]
     var assignments: [Assignment]
     var grades: [Grade]
@@ -21,6 +26,9 @@ struct PlannerDocument: Codable {
     var taskPlans: [TaskPlan]
     var studySessions: [StudySession]
     var profile: Profile
+    /// Progress from a backup (D-74). Optional, by the rule above: every
+    /// planner.json saved before 11b+c has no `game`, and still loads.
+    var game: GameBlobs?                 // NEW in Phase 11b+c
 }
 
 extension Store {
@@ -44,10 +52,26 @@ extension Store {
     }
 
     /// The store's contents packed into one saveable value.
+    // CHANGED in Phase 11b+c: progress goes in too, when there is some.
     var document: PlannerDocument {
         PlannerDocument(courses: courses, assignments: assignments, grades: grades,
                         notes: notes, taskPlans: taskPlans, studySessions: studySessions,
-                        profile: profile)
+                        profile: profile, game: game.isEmpty ? nil : game)
+    }
+
+    /// Puts a whole saved planner into the store: what opening the app does,
+    /// and what undoing a restore or a failed save does. The other half of
+    /// `document`.
+    // NEW in Phase 11b+c (it used to be written out inside `load()`)
+    func replaceAll(with saved: PlannerDocument) {
+        courses = saved.courses
+        assignments = saved.assignments
+        grades = saved.grades
+        notes = saved.notes
+        taskPlans = saved.taskPlans
+        studySessions = saved.studySessions
+        profile = saved.profile
+        game = saved.game ?? GameBlobs()
     }
 
     /// Writes the planner to the phone. Call it after every change, before any
@@ -91,15 +115,13 @@ extension Store {
             return .sample
         }
 
-        // Copy each saved list into a fresh store.
+        // Copy the saved planner into a fresh store.
+        // CHANGED in Phase 11b+c: one call instead of a line per list.
         let store = Store()
-        store.courses = saved.courses
-        store.assignments = saved.assignments
-        store.grades = saved.grades
-        store.notes = saved.notes
-        store.taskPlans = saved.taskPlans
-        store.studySessions = saved.studySessions
-        store.profile = saved.profile
+        store.replaceAll(with: saved)
+        // NEW in Phase 11b+c: anything deleted over 30 days ago goes for good
+        // now (Store+Trash.swift), as the web's server does each night.
+        store.purgeExpired(now: .now)
         return store
     }
 }

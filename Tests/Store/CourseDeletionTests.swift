@@ -20,7 +20,7 @@ import Testing
     private func populate(_ store: Store) -> Course {
         let biology = course()
         let chemistry = course("Chemistry")
-        let old = Date(timeIntervalSince1970: 1_700_000_000)
+        let old = Date.now.addingTimeInterval(-86_400)   // CHANGED in Phase 11b+c
         store.courses = [biology, chemistry]
         store.assignments = [
             Assignment(courseID: biology.id, title: "Open", due: "2026-10-20"),

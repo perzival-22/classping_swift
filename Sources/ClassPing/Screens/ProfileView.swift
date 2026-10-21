@@ -1,14 +1,16 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/ProfileView.swift
-//  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card)
-//           and 11a (the settings: profile, grading scale, semester)
+//  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card),
+//           11a (the settings: profile, grading scale, semester) and 11b+c
+//           (the calendar file, and your data: backups, Recently Deleted,
+//           clearing)
 //  Ports:   app/settings/page.tsx, moved into its own tab (D-19): the
-//           Profile, Appearance, Reminders, Grading scale and Semester cards
+//           Profile, Appearance, Reminders (with its calendar export), Grading
+//           scale and Semester cards, and the backup rows of the Account card
 //
 //  Summary: The Profile tab is ClassPing's settings: you, the look, your
-//           reminders, how letters are worked out, and the term. Backups,
-//           Recently Deleted and the calendar export arrive in 11b and 11c,
-//           your account with sync, your level in Phase 12.
+//           reminders and calendar, how letters are worked out, the term, and
+//           your data. Your account arrives with sync, your level in Phase 12.
 //
 
 import SwiftUI
@@ -78,6 +80,11 @@ struct ProfileView: View {
                 // MARK: Reminders
                 RemindersSection()
 
+                // MARK: Calendar
+                // NEW in Phase 11b+c: the timetable as a .ics file. The web
+                // puts this inside its Reminders card; here it's its own card.
+                CalendarCard()
+
                 // MARK: Grading scale
                 // NEW in Phase 11a: moved here from the Grades screen (D-67).
                 GradingSection()
@@ -86,11 +93,15 @@ struct ProfileView: View {
                 // NEW in Phase 11a.
                 SemesterSection()
 
+                // MARK: Your data
+                // NEW in Phase 11b+c: back up, restore, Recently Deleted, clear.
+                DataSection()
+
                 // MARK: Coming to this tab
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("COMING TO THIS TAB")
-                    // CHANGED in Phase 11a: name, photo and semester are here now.
-                    comingRow("externaldrive", "Backups, Recently Deleted, calendar export")
+                    // CHANGED in Phase 11b+c: backups, Recently Deleted and
+                    // the calendar are here now. Only your account is left.
                     comingRow("person.crop.circle", "Your account and sync")
                 }
                 .padding(16)
@@ -106,6 +117,9 @@ struct ProfileView: View {
         // Save whenever a profile field changes, so the choice survives a
         // relaunch. CHANGED in Phase 5a: this moved here from TodayView.
         .onChange(of: store.profile) { store.save() }
+        // NEW in Phase 11b+c: "Backup restored" with its Undo shows here,
+        // where the restore happened, as well as on the other tabs.
+        .undoBar()
     }
 
     /// The small spaced-out caps over each card, like the web's section labels.
