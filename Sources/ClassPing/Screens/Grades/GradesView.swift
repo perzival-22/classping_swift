@@ -1,11 +1,11 @@
 //
 // File: ~/ClassPing/Sources/ClassPing/Screens/Grades/GradesView.swift
-// Phase: 9a, extended in 9b and 9c
-// Ports: app/grades/page.tsx, reached from Profile (D-19), and the grading
-//        card of app/settings/page.tsx (D-51).
+// Phase: 9a, extended in 9b, 9c and 11a
+// Ports: app/grades/page.tsx, reached from Profile (D-19).
 // Summary: This term's credit-weighted GPA, results and separate past terms.
-// 9b adds the projected GPA, a goal on each class, and the three scales with
-// the custom editor. 9c adds the finals countdown and the term report.
+// 9b adds the projected GPA and a goal on each class, 9c the finals
+// countdown and the term report. 11a moves the grading scale to the Profile
+// tab, where the web keeps it in Settings (D-67); a line here names it.
 //
 import SwiftUI
 
@@ -36,7 +36,11 @@ struct GradesView: View {
                 // NEW in Phase 9c: under the GPA, where the web's phone layout
                 // puts it.
                 FinalsCountdown()
-                scalePicker
+                // CHANGED in Phase 11a: the scale card moved to the Profile tab
+                // (D-67). One line still says which scale the letters use.
+                Text("Letters use the \(scaleName) scale. Change it under Profile \u{2192} Grading scale.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.muted)
                 if store.activeCourses.isEmpty {
                     Text("No classes in this term yet. Add a class to start logging grades.")
                         .foregroundStyle(Theme.muted)
@@ -140,54 +144,14 @@ struct GradesView: View {
         .cardStyle()
     }
 
-    // CHANGED in Phase 9b: all three scales, as the web's grading card has
-    // them, with Custom opening its editor (D-51). The choice goes through
-    // the store, which puts the old one back if the write fails.
-    private var scalePicker: some View {
-        let selected = store.profile.gradeScale ?? .standard
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("GRADING SCALE")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.muted)
-                .accessibilityAddTraits(.isHeader)
-            Picker("Grade scale", selection: Binding(
-                get: { store.profile.gradeScale ?? .standard },
-                set: { store.setGradeScale($0) }
-            )) {
-                Text("A / A\u{2212}").tag(Profile.GradeScale.standard)
-                Text("A / B / C").tag(Profile.GradeScale.simple)
-                Text("Custom").tag(Profile.GradeScale.custom)
-            }
-            .pickerStyle(.segmented)
-
-            // A line about the chosen scale; Custom adds the way into its editor.
-            switch selected {
-            case .standard:
-                Text("93+ is an A, 90+ an A\u{2212}. The usual US scale.")
-                    .font(.footnote).foregroundStyle(Theme.muted)
-            case .simple:
-                Text("90+ is an A, 80+ a B. No plus or minus bands.")
-                    .font(.footnote).foregroundStyle(Theme.muted)
-            case .custom:
-                Text(store.usesFallbackScale
-                     ? "Your custom scale is empty. Using US 4.0 for now."
-                     : "Using your \(store.gradeScale.count) bands.")
-                    .font(.footnote).foregroundStyle(Theme.muted)
-                NavigationLink {
-                    GradeScaleEditor(saved: store.profile.customScale)
-                } label: {
-                    HStack {
-                        Text(store.usesFallbackScale ? "Set up your scale" : "Edit your scale")
-                        Spacer()
-                        Image(systemName: "chevron.right").accessibilityHidden(true)
-                    }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-            }
+    // NEW in Phase 11a
+    /// The chosen scale's short name, for the line under the countdown.
+    private var scaleName: String {
+        switch store.profile.gradeScale ?? .standard {
+        case .standard: "A / A\u{2212}"
+        case .simple: "A / B / C"
+        case .custom: store.usesFallbackScale ? "A / A\u{2212} (your custom one is empty)" : "custom"
         }
-        .padding(16)
-        .cardStyle()
     }
 
     private func courseCard(_ course: Course, canAdd: Bool) -> some View {

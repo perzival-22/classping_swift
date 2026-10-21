@@ -1,16 +1,18 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/ProfileView.swift
 //  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card)
-//  Ports:   the profile card and the Appearance / App color sections of
-//           app/settings/page.tsx, moved into their own tab (D-19)
+//           and 11a (the settings: profile, grading scale, semester)
+//  Ports:   app/settings/page.tsx, moved into its own tab (D-19): the
+//           Profile, Appearance, Reminders, Grading scale and Semester cards
 //
-//  Summary: The Profile tab. For now: your avatar and name, the Appearance
-//           card (moved here from Today), the Reminders card, and a list of
-//           what arrives in this tab later. Phase 11 builds the full
-//           settings, Phase 12 your level.
+//  Summary: The Profile tab is ClassPing's settings: you, the look, your
+//           reminders, how letters are worked out, and the term. Backups,
+//           Recently Deleted and the calendar export arrive in 11b and 11c,
+//           your account with sync, your level in Phase 12.
 //
 
 import SwiftUI
+import UIKit
 
 struct ProfileView: View {
     @Environment(Store.self) private var store
@@ -18,7 +20,6 @@ struct ProfileView: View {
     var body: some View {
         // `@Bindable` lets the pickers write into the store (Phase 3).
         @Bindable var store = store
-        let accent = store.profile.accent
 
         ScrollView {
             VStack(spacing: 16) {
@@ -30,44 +31,8 @@ struct ProfileView: View {
                         .accessibilityAddTraits(.updatesFrequently)
                 }
                 // MARK: You
-                VStack(spacing: 10) {
-                    AvatarBadge(name: store.profile.username, size: 84, accent: accent)
-                    Text(store.profile.username.isEmpty ? "Your profile" : store.profile.username)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(Theme.ink)
-                    Text("Your level, streak and trophies are coming soon.")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.muted)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(20)
-                .frame(maxWidth: .infinity)
-                .cardStyle()
-
-                // MARK: Appearance
-                // Moved from Today's temporary card (Phase 3). Phase 11 turns
-                // this into the full Appearance section of the settings.
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("APPEARANCE")
-                    Picker("Theme", selection: $store.profile.theme) {
-                        Text("Light").tag(Profile.Theme.light)
-                        Text("Dark").tag(Profile.Theme.dark)
-                    }
-                    .pickerStyle(.segmented)
-
-                    Picker("App color", selection: $store.profile.accent) {
-                        Text("Baby Pink").tag(Profile.Accent.babypink)
-                        Text("Ocean").tag(Profile.Accent.ocean)
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
-
-                // MARK: Reminders
-                // NEW in Phase 7a: the after-class nudge and quiet hours.
-                RemindersSection()
+                // CHANGED in Phase 11a: your photo and name, editable.
+                ProfileCard()
 
                 // Phase 9a: Grades now opens on Profile's navigation stack.
                 NavigationLink {
@@ -84,13 +49,49 @@ struct ProfileView: View {
                     .cardStyle()
                 }
 
+                // MARK: Appearance
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionLabel("APPEARANCE")
+                    Picker("Theme", selection: $store.profile.theme) {
+                        Text("Light").tag(Profile.Theme.light)
+                        Text("Dark").tag(Profile.Theme.dark)
+                    }
+                    .pickerStyle(.segmented)
+                    // NEW in Phase 11a: the web's line under each choice.
+                    footnote(store.profile.theme == .dark
+                             ? "Warm charcoal, with the same soft surfaces and your app color."
+                             : "Switch to warm charcoal for late-night planning.")
+
+                    sectionLabel("APP COLOR")
+                        .padding(.top, 6)
+                    Picker("App color", selection: $store.profile.accent) {
+                        Text("Baby Pink").tag(Profile.Accent.babypink)
+                        Text("Ocean").tag(Profile.Accent.ocean)
+                    }
+                    .pickerStyle(.segmented)
+                    footnote("Baby Pink or Ocean, for your highlights and primary actions.")
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardStyle()
+
+                // MARK: Reminders
+                RemindersSection()
+
+                // MARK: Grading scale
+                // NEW in Phase 11a: moved here from the Grades screen (D-67).
+                GradingSection()
+
+                // MARK: Semester
+                // NEW in Phase 11a.
+                SemesterSection()
+
                 // MARK: Coming to this tab
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("COMING TO THIS TAB")
-                    // CHANGED in Phase 7a: the "Reminders and quiet hours" row
-                    // is gone; it's the card above now.
-                    comingRow("calendar", "Semester, backups, Recently Deleted")
-                    comingRow("person.crop.circle", "Your name, photo and account")
+                    // CHANGED in Phase 11a: name, photo and semester are here now.
+                    comingRow("externaldrive", "Backups, Recently Deleted, calendar export")
+                    comingRow("person.crop.circle", "Your account and sync")
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -98,6 +99,8 @@ struct ProfileView: View {
             }
             .padding(16)
         }
+        // NEW in Phase 11a: a swipe down the page puts the keyboard away.
+        .scrollDismissesKeyboard(.interactively)
         .background(Theme.canvas)
         .navigationTitle("Profile")
         // Save whenever a profile field changes, so the choice survives a
@@ -111,6 +114,14 @@ struct ProfileView: View {
             .font(.system(size: 11, weight: .semibold))
             .tracking(1.2)
             .foregroundStyle(Theme.faint)
+    }
+
+    /// The small grey line under a control. NEW in Phase 11a.
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.faint)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// One upcoming feature, shown as a label until its screen is available.
@@ -128,10 +139,15 @@ struct ProfileView: View {
     }
 }
 
-/// A round avatar: the first letter of your name on the brand gradient, or a
-/// person symbol before you've set a name. The tab bar uses a small one, the
-/// Profile tab a big one. Phase 11 adds your photo; Phase 12 the pet-tier ring.
+/// A round avatar: your photo if you've chosen one, otherwise up to two
+/// initials on the brand gradient, or a person symbol before you've set a
+/// name. The tab bar uses a small one, the Profile tab a big one. Phase 12
+/// adds the pet-tier ring.
 struct AvatarBadge: View {
+    // NEW in Phase 11a: the photo comes from the store, so every badge
+    // shows it without each caller passing it in.
+    @Environment(Store.self) private var store
+
     let name: String
     let size: CGFloat
     let accent: Profile.Accent
@@ -139,19 +155,49 @@ struct AvatarBadge: View {
     var body: some View {
         ZStack {
             Circle().fill(Theme.brandGradient(accent))
-            // `.first` is the name's first character, or nil for an empty name.
-            if let initial = name.trimmingCharacters(in: .whitespaces).first {
-                Text(String(initial).uppercased())
-                    .font(.system(size: size * 0.42, weight: .bold))
-                    .foregroundStyle(.white)
-            } else {
+            // CHANGED in Phase 11a: two initials, as on the web ("KM").
+            let letters = avatarInitials(name.trimmingCharacters(in: .whitespaces))
+            if letters.isEmpty {
                 Image(systemName: "person.fill")
                     .font(.system(size: size * 0.45))
                     .foregroundStyle(.white)
+            } else {
+                Text(letters)
+                    .font(.system(size: size * (letters.count > 1 ? 0.36 : 0.42), weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            // NEW in Phase 11a: the photo, laid over the initials.
+            if let uri = store.profile.avatarURL, uri.hasPrefix("data:image/") {
+                AvatarPhoto(uri: uri)
             }
         }
         .frame(width: size, height: size)
+        .clipShape(Circle())
         // The tab's own label says "Profile", so VoiceOver skips the picture.
         .accessibilityHidden(true)
+    }
+}
+
+/// A stored `data:` picture, turned back into an image once per picture
+/// rather than on every redraw. NEW in Phase 11a.
+private struct AvatarPhoto: View {
+    let uri: String
+    /// The decoded picture, or nil until it's ready (the initials show).
+    @State private var image: UIImage? = nil
+
+    var body: some View {
+        // `Color.clear` takes the badge's size; the photo fills it, cropped.
+        Color.clear
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            // Runs when the badge appears and again when the picture changes.
+            .task(id: uri) {
+                image = avatarImageData(uri).flatMap { UIImage(data: $0) }
+            }
     }
 }
