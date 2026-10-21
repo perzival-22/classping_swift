@@ -1,2 +1,3 @@
 version: 1
 bundleID: space.classping.ios
+infoPath: Info.plist

@@ -1,6 +1,6 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Study/StudyTimerView.swift
-//  Phase:   10a (the study timer)
+//  Phase:   10a (the study timer), changed in 10b (sound and the lock screen)
 //  Ports:   components/StudyTimer.tsx (the running, paused and finished
 //           states, focus mode, and its `onFocusComplete` and
 //           `onFinishTask` callbacks in app/tasks/[id]/page.tsx)
@@ -10,7 +10,9 @@
 //           that hides everything but the clock. Every block's end is worked out when you start, so
 //           the session keeps time with the phone in your pocket: an alert
 //           rings at each block's end, and each finished focus block is
-//           recorded at the moment it ended.
+//           recorded at the moment it ended. Since 10b the session can play
+//           a sound, which carries on with the screen locked, and shows on
+//           the lock screen with play and pause buttons.
 //
 
 import SwiftUI
@@ -42,6 +44,11 @@ struct StudyTimerView: View {
     @State private var credited = 0
     /// Focus mode, the web's "zen": everything but the clock hidden.
     @State private var zen = false
+    /// NEW in Phase 10b: the sound picked in setup, or nil for silence.
+    @State private var ambience: AmbienceID? = nil
+    /// NEW in Phase 10b: plays it. `@State` keeps this one object for as
+    /// long as the sheet is open, however often the screen redraws.
+    @State private var sound = AmbientPlayer()
 
     var body: some View {
         let accent = store.profile.accent
@@ -54,8 +61,9 @@ struct StudyTimerView: View {
                     switch phase {
                     case .setup:
                         header("WORKING ON", assignment.title)
+                        // CHANGED in Phase 10b: the sound picker too.
                         StudySetupView(mode: $mode, minutes: $minutes, config: $config,
-                                       onStart: start)
+                                       ambience: $ambience, onStart: start)
                     case .running(let run):
                         // A clock redrawn twice a second; every number on it
                         // comes from the time, never from counting ticks.
@@ -100,9 +108,30 @@ struct StudyTimerView: View {
         .task(id: phase) {
             await store.scheduleStudyAlerts(currentAlerts)
         }
+        // NEW in Phase 10b: build the loop as soon as a sound is picked, so
+        // Start doesn't wait for it (the web's `pickAmbience`), and let the
+        // sound follow the session: playing while it runs, held while paused.
+        .onChange(of: ambience) { _, picked in
+            if let picked { sound.prepare(picked) }
+        }
+        .onChange(of: phase) {
+            syncSound()
+        }
+        // NEW in Phase 10b: the lock screen's play and pause buttons pause and
+        // resume the timer itself, as the web's Media Session handlers do.
+        .onAppear {
+            sound.listen(play: {
+                if case .paused(let run) = phase { resume(run) }
+            }, pause: {
+                if case .running(let run) = phase { pause(run) }
+            })
+        }
         // Closing the sheet ends the session, so its alerts go too.
+        // CHANGED in Phase 10b: and its sound and lock-screen buttons.
         .onDisappear {
             Task { await store.scheduleStudyAlerts([]) }
+            sound.stop()
+            sound.stopListening()
         }
     }
 
@@ -150,6 +179,40 @@ struct StudyTimerView: View {
             phase = .done(run)
             zen = false
         }
+        // NEW in Phase 10b: a new block means a new lock-screen line.
+        syncSound()
+    }
+
+    // NEW in Phase 10b
+    /// Makes the sound match the session: playing while it runs (breaks
+    /// included, as on the web: silence on the dot is a jolt), held while
+    /// paused, gone before Start and after the end.
+    private func syncSound() {
+        switch phase {
+        case .running(let run):
+            guard let ambience else {
+                sound.stop()
+                return
+            }
+            sound.play(ambience)
+            let now = min(runPosition(run, at: .now).index, run.plan.count - 1)
+            showNowPlaying(run, index: now, running: true)
+        case .paused(let run):
+            sound.pause()
+            if ambience != nil { showNowPlaying(run, index: run.index, running: false) }
+        case .setup, .done:
+            sound.stop()
+        }
+    }
+
+    // NEW in Phase 10b
+    /// The lock screen's two lines: "Break" or the task, and the round.
+    /// The web's `MediaMetadata`.
+    private func showNowPlaying(_ run: StudyRun, index: Int, running: Bool) {
+        let rounds = focusCount(run.plan)
+        sound.showNowPlaying(title: run.plan[index].kind == .rest ? "Break" : assignment.title,
+                             detail: rounds > 1 ? "Round \(roundAt(run.plan, index)) of \(rounds)" : "Study block",
+                             running: running)
     }
 
     /// Stops the clock where it is. Whatever already finished is recorded first.

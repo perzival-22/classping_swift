@@ -1,13 +1,14 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Study/StudySetupView.swift
-//  Phase:   10a (the study timer)
+//  Phase:   10a (the study timer), changed in 10b (the sound picker)
 //  Ports:   the setup half of components/StudyTimer.tsx
 //
 //  Summary: The one decision before a study session: how long. One block
 //           (15, 25, 45 or 60 minutes, or any number up to 240), or Pomodoro
 //           (a focus length and 2, 3, 4 or 6 rounds, with breaks between).
 //           Presets first, because "25 minutes" is a choice a stuck student
-//           can make. The sound picker joins in 10b.
+//           can make. Since 10b, a sound to study to: Silent, Rain, Deep
+//           noise or Waves.
 //
 
 import SwiftUI
@@ -22,6 +23,8 @@ struct StudySetupView: View {
     @Binding var minutes: Int
     /// Pomodoro's focus length and rounds.
     @Binding var config: PomodoroConfig
+    /// NEW in Phase 10b: the sound for the session, or nil for silence.
+    @Binding var ambience: AmbienceID?
     /// Starts the session the setup describes.
     let onStart: () -> Void
 
@@ -83,6 +86,19 @@ struct StudySetupView: View {
                     .frame(maxWidth: .infinity)
             }
 
+            // NEW in Phase 10b: the sound, made on the phone, so the list
+            // costs nothing to ship. Tapping the chosen one again is Silent.
+            label("SOUND")
+            HStack(spacing: 10) {
+                soundChip("Silent", on: ambience == nil, quiet: true) { ambience = nil }
+                ForEach(AMBIENCES, id: \.id) { sound in
+                    soundChip(sound.label, on: ambience == sound.id, quiet: false) {
+                        ambience = ambience == sound.id ? nil : sound.id
+                    }
+                    .accessibilityHint(sound.hint)
+                }
+            }
+
             Button(action: onStart) {
                 Text(mode == .timer ? "Start \(minutes) minutes" : "Start \(config.rounds) rounds")
                     .font(.headline)
@@ -129,5 +145,26 @@ struct StudySetupView: View {
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
+    }
+
+    // NEW in Phase 10b
+    /// One sound chip. A chosen sound is filled with your accent; Silent,
+    /// when chosen, just darkens, as on the web.
+    private func soundChip(_ title: String, on: Bool, quiet: Bool,
+                           pick: @escaping () -> Void) -> some View {
+        let accent = store.profile.accent
+        let fill = on ? (quiet ? Theme.lineStrong : Theme.brand(accent)) : Theme.surface2
+        let ink = on ? (quiet ? Theme.ink : Color.white) : Theme.muted
+        return Button(action: pick) {
+            Text(title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(ink)
+                .background(fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
