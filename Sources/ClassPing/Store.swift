@@ -85,7 +85,7 @@ extension Store {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")   // same format whatever your phone's language
         f.dateFormat = "yyyy-MM-dd"
-        let date = Calendar.current.date(byAdding: .day, value: offset, to: .now) ?? .now
+        let date = Calendar.autoupdatingCurrent.date(byAdding: .day, value: offset, to: .now) ?? .now
         return f.string(from: date)
     }
 }

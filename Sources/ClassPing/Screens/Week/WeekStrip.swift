@@ -81,7 +81,7 @@ struct WeekStrip: View {
 
     /// One day: its letter, its date in a circle, and the class dots.
     private func dayButton(_ col: Int, _ date: Date, _ dots: [SubjectColor], _ brand: Color) -> some View {
-        let cal = Calendar.current
+        let cal = Calendar.autoupdatingCurrent
         let isToday = cal.isDate(date, inSameDayAs: now)
         let isPicked = cal.isDate(date, inSameDayAs: selected)
         // At most three dots fit under a day. `prefix(3)` keeps the first three.

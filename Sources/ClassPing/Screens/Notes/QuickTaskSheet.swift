@@ -43,9 +43,9 @@ struct QuickTaskSheet: View {
     init(mode: QuickTaskMode, courseID: UUID?) {
         self.mode = mode
         self.courseID = courseID
-        let ahead = Calendar.current.date(byAdding: .day, value: quickTaskDaysAhead(mode), to: .now)
+        let ahead = Calendar.autoupdatingCurrent.date(byAdding: .day, value: quickTaskDaysAhead(mode), to: .now)
         _day = State(initialValue: ahead ?? .now)
-        let five = Calendar.current.date(bySettingHour: 17, minute: 0, second: 0, of: .now)
+        let five = Calendar.autoupdatingCurrent.date(bySettingHour: 17, minute: 0, second: 0, of: .now)
         _clock = State(initialValue: five ?? .now)
     }
 

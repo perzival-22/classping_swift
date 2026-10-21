@@ -126,7 +126,7 @@ func snoozeUntil(_ preset: SnoozePreset, _ now: Date) -> Date {
         return now.addingTimeInterval(3 * 3600)
     case .evening:
         // 6 PM today, or tomorrow's 6 PM once today's has gone.
-        let today = atMinute(Calendar.current.startOfDay(for: now), eveningHour * 60)
+        let today = atMinute(Calendar.autoupdatingCurrent.startOfDay(for: now), eveningHour * 60)
         return today > now ? today : atMinute(scheduleDate(now, 1), eveningHour * 60)
     case .tomorrow:
         return atMinute(scheduleDate(now, 1), morningHour * 60)
@@ -215,7 +215,7 @@ let leadGrace: TimeInterval = nagWindow
 /// `leadKey`. The deadline is part of it, so moving a deadline re-arms its
 /// warnings: a new date deserves a new heads-up.
 func leadKey(_ taskID: String, _ lead: Int, _ deadline: Date) -> String {
-    let c = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: deadline)
+    let c = Calendar.autoupdatingCurrent.dateComponents([.year, .month, .day, .hour, .minute], from: deadline)
     let stamp = String(format: "%04d-%02d-%02dT%02d%02d",
                        c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
     return "task:\(taskID):lead:\(lead)@\(stamp)"
@@ -259,7 +259,7 @@ func keepFiredKey(_ key: String, _ dayKey: String, _ liveTaskIDs: Set<String>) -
 /// day roll into the next one (1450 is 12:10 AM tomorrow), and negative ones
 /// into the day before (-10 is 11:50 PM yesterday).
 func atMinute(_ day: Date, _ mins: Int) -> Date {
-    let cal = Calendar.current
+    let cal = Calendar.autoupdatingCurrent
     // Split into whole days and the minute within that day. Swift's `/`
     // rounds toward zero, so negative minutes need the "- 1439" to round down.
     let days = mins >= 0 ? mins / 1440 : (mins - 1439) / 1440

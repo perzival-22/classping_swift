@@ -74,6 +74,15 @@ private struct ReminderSync: ViewModifier {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { wakeUps += 1 }
             }
+            // Local calendar times (class meetings, deadlines and reminders)
+            // follow the phone. Rebuild reminders if its clock or time zone
+            // changes while ClassPing is already open.
+            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+                wakeUps += 1
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                wakeUps += 1
+            }
     }
 
     /// What the sync watches: the store's reminder inputs plus the wake-up

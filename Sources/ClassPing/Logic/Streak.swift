@@ -56,7 +56,7 @@ private func hadOverdue<T: Completable>(_ tasks: [T], _ dayEnd: Date) -> Bool {
 /// The streak counts days with nothing overdue, not days of perfect work, so
 /// a student who has fallen behind can always restart it by catching up.
 func termStats<T: Completable>(_ tasks: [T], _ now: Date) -> TermStats {
-    let today = Calendar.current.startOfDay(for: now)
+    let today = Calendar.autoupdatingCurrent.startOfDay(for: now)
 
     // Count the first three numbers in one pass. Undated work (Inbox) is
     // neither overdue nor due this week: it's waiting to be scheduled, and

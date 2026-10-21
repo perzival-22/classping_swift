@@ -12,7 +12,7 @@
 //  convert between a UTC instant and a named time zone's wall clock. They exist
 //  only because the web app's notification cron runs in UTC and has to work out
 //  what time it is for a student somewhere else. The phone is always in its own
-//  zone: `Calendar.current` already is the student's wall clock, and Phase 7
+//  zone: `Calendar.autoupdatingCurrent` already is the student's wall clock, and Phase 7
 //  schedules local notifications straight from DateComponents, so neither helper
 //  has a caller on the device. See DECISIONS.md D-16. If a device feature ever
 //  needs cross-zone maths, port them then, with their lib/time.test.ts cases.
@@ -36,7 +36,7 @@ func fmtTime(_ mins: Int) -> String {
 /// daylight-saving change or a year boundary. `now` is never changed: a Swift
 /// `Date` is a value, so callers keep their own copy untouched.
 func scheduleDate(_ now: Date, _ offset: Int) -> Date {
-    let cal = Calendar.current
+    let cal = Calendar.autoupdatingCurrent
     let midnight = cal.startOfDay(for: now)
     // `date(byAdding:value:to:)` is the calendar-aware "+ N days".
     return cal.date(byAdding: .day, value: offset, to: midnight) ?? midnight
@@ -70,7 +70,7 @@ func dayNumber(_ iso: String) -> Int? {
 /// Reads `now`'s local year/month/day, then counts to that day as if it were UTC
 /// midnight, so it lines up with the UTC-anchored `dayNumber` above.
 func todayNumber(_ now: Date) -> Int {
-    let local = Calendar.current.dateComponents([.year, .month, .day], from: now)
+    let local = Calendar.autoupdatingCurrent.dateComponents([.year, .month, .day], from: now)
     var cal = Calendar(identifier: .gregorian)
     cal.timeZone = TimeZone(identifier: "UTC") ?? .current
     var c = DateComponents()

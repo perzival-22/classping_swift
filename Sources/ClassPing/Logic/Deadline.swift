@@ -100,13 +100,13 @@ func isValidTime(_ v: String?) -> Bool {
 /// Reading local components (not UTC) is the whole point: 00:30 local on the 7th
 /// is still the 7th, even though UTC already thinks it is the 8th.
 func dayOf(_ d: Date) -> String {
-    let c = Calendar.current.dateComponents([.year, .month, .day], from: d)
+    let c = Calendar.autoupdatingCurrent.dateComponents([.year, .month, .day], from: d)
     return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
 }
 
 /// "HH:mm" for a Date, read in the device's own zone. `timeOf` in the web app.
 func timeOf(_ d: Date) -> String {
-    let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+    let c = Calendar.autoupdatingCurrent.dateComponents([.hour, .minute], from: d)
     return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
 }
 /// Build a deadline, dropping anything malformed rather than guessing at it.
@@ -172,7 +172,7 @@ func deadlineInstant(_ d: Deadline) -> Date? {
     // "no deadline" instead of a date that silently compares wrong.
     guard isValidDate(d.date), let date = d.date else { return nil }
 
-    // Build the instant from explicit local components. `Calendar.current` carries
+    // Build the instant from explicit local components. `Calendar.autoupdatingCurrent` carries
     // the device's zone, so these numbers mean local wall-clock time.
     let p = date.split(separator: "-").map { Int($0) ?? 0 }
     var c = DateComponents()
@@ -186,7 +186,7 @@ func deadlineInstant(_ d: Deadline) -> Date? {
         // All-day: the last moment of the day (23:59:59.999, like the web app).
         c.hour = 23; c.minute = 59; c.second = 59; c.nanosecond = 999_000_000
     }
-    return Calendar.current.date(from: c)
+    return Calendar.autoupdatingCurrent.date(from: c)
 }
 
 /// Local midnight that starts the deadline's day. Nil when undated.
@@ -197,7 +197,7 @@ func deadlineDayStart(_ d: Deadline) -> Date? {
     var c = DateComponents()
     c.year = p[0]; c.month = p[1]; c.day = p[2]
     c.hour = 0; c.minute = 0; c.second = 0
-    return Calendar.current.date(from: c)
+    return Calendar.autoupdatingCurrent.date(from: c)
 }
 
 /// True when a deadline has no day at all. `isUndated` in the web app.
@@ -246,7 +246,7 @@ func compareDeadlines(_ a: Deadline, _ b: Deadline) -> Int {
 /// days, not 24-hour blocks: 1am tomorrow is one day away even if it is two hours off.
 func daysUntil(_ d: Deadline, _ now: Date) -> Int? {
     guard let start = deadlineDayStart(d) else { return nil }
-    let today = Calendar.current.startOfDay(for: now)
+    let today = Calendar.autoupdatingCurrent.startOfDay(for: now)
     // Round, do not floor: across a daylight-saving change a day is 23 or 25 hours
     // long, and rounding keeps the count whole instead of drifting to 0 or 2.
     let days = start.timeIntervalSince(today) / 86_400
@@ -293,7 +293,7 @@ func formatDeadline(_ d: Deadline, _ now: Date) -> String {
 /// "Oct 20", or "Jan 5, 2027" when the date is in a different year from `now`.
 /// Matches the web app's `toLocaleDateString("en-US", { month: "short", day: ... })`.
 private func shortDate(_ date: Date, relativeTo now: Date) -> String {
-    let cal = Calendar.current
+    let cal = Calendar.autoupdatingCurrent
     let sameYear = cal.component(.year, from: date) == cal.component(.year, from: now)
     let f = DateFormatter()
     // POSIX locale: English month names, stable whatever the phone's language is.

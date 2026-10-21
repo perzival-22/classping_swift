@@ -132,7 +132,7 @@ struct WeekGrid: View {
                     Text(names[col])
                         .font(.system(size: 10.5, weight: .semibold))
                         .foregroundStyle(isToday ? brand : Theme.faint)
-                    Text("\(Calendar.current.component(.day, from: dates[col]))")
+                    Text("\(Calendar.autoupdatingCurrent.component(.day, from: dates[col]))")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(isToday ? Color.white : Theme.muted)
                         .frame(width: 26, height: 26)

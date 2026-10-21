@@ -188,7 +188,7 @@ struct MeetingFields: View {
                 // Today at that wall-clock time. Setting the hour and minute
                 // (rather than adding minutes to midnight) stays right on the
                 // two days a year the clocks change.
-                return Calendar.current.date(bySettingHour: m / 60, minute: m % 60,
+                return Calendar.autoupdatingCurrent.date(bySettingHour: m / 60, minute: m % 60,
                                              second: 0, of: .now) ?? .now
             },
             set: { picked in

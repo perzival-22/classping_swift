@@ -60,7 +60,7 @@ struct TodayView: View {
     /// Which week the strip and grid show: 0 = this week, 1 = next, -1 = last.
     @State private var weekOffset = 0
     /// The day picked in the strip, as local midnight. Starts on today.
-    @State private var selectedDay = Calendar.current.startOfDay(for: .now)
+    @State private var selectedDay = Calendar.autoupdatingCurrent.startOfDay(for: .now)
     /// The sheet currently presented, or nil when none is open.
     @State private var sheet: TodaySheet?
     /// NEW in Phase 7c: the class whose just-ended banner you closed with ×.
@@ -123,7 +123,7 @@ struct TodayView: View {
                 selectedDay = weekDates(now, offset)[dayIndex(of: selectedDay)]
             }
             // Keep following today across midnight until another day is picked.
-            .onChange(of: Calendar.current.startOfDay(for: now)) { previous, current in
+            .onChange(of: Calendar.autoupdatingCurrent.startOfDay(for: now)) { previous, current in
                 if weekOffset == 0 && selectedDay == previous {
                     selectedDay = current
                 }
@@ -139,7 +139,7 @@ struct TodayView: View {
         }
         // CHANGED in Phase 6a: "Today", or the picked day's name, like the
         // web's heading.
-        .navigationTitle(Calendar.current.isDateInToday(selectedDay)
+        .navigationTitle(Calendar.autoupdatingCurrent.isDateInToday(selectedDay)
                          ? "Today" : dayNames[dayIndex(of: selectedDay)])
         // The calendar button where the web's gear used to be (the gear's
         // job moved to the Profile tab). It opens and folds the week.
@@ -262,7 +262,7 @@ struct TodayView: View {
         let col = dayIndex(of: day)
         let start = store.profile.termStart
         let end = store.profile.termEnd
-        let isToday = Calendar.current.isDate(day, inSameDayAs: now)
+        let isToday = Calendar.autoupdatingCurrent.isDate(day, inSameDayAs: now)
         let dayName = dayNames[col]
 
         // A timetable only exists inside its semester. Outside it, nothing is
@@ -320,7 +320,7 @@ struct TodayView: View {
             emptyState(emoji: "🎉", title: "You're all free this week!",
                        message: "No classes scheduled this week. Enjoy your time!")
             Button {
-                showDay(Calendar.current.startOfDay(for: now), now)
+                showDay(Calendar.autoupdatingCurrent.startOfDay(for: now), now)
             } label: {
                 Text("Back to Today")
                     .font(.system(size: 15, weight: .semibold))
@@ -520,7 +520,7 @@ struct TodayView: View {
         // Whole weeks between this week's Monday and the day, rounded down,
         // so a day in last week is -1 and not 0.
         let monday = weekDates(now, 0)[0]
-        let days = Calendar.current.dateComponents([.day], from: monday, to: day).day ?? 0
+        let days = Calendar.autoupdatingCurrent.dateComponents([.day], from: monday, to: day).day ?? 0
         selectedDay = day
         weekOffset = Int((Double(days) / 7).rounded(.down))
     }
@@ -529,15 +529,15 @@ struct TodayView: View {
     /// The web's `offset`. Counted in calendar days, so a daylight-saving
     /// change can't make it off by one.
     private func daysAhead(of now: Date) -> Int {
-        let today = Calendar.current.startOfDay(for: now)
-        return Calendar.current.dateComponents([.day], from: today, to: selectedDay).day ?? 0
+        let today = Calendar.autoupdatingCurrent.startOfDay(for: now)
+        return Calendar.autoupdatingCurrent.dateComponents([.day], from: today, to: selectedDay).day ?? 0
     }
 
     /// "Good morning, Kelvin 👋". The web's `greeting(hour)` plus the first
     /// part of your username; just the greeting until you've set a name.
     // CHANGED in Phase 6a: the wave, as on the web.
     private func greeting(_ now: Date) -> String {
-        let hour = Calendar.current.component(.hour, from: now)
+        let hour = Calendar.autoupdatingCurrent.component(.hour, from: now)
         let hello = hour < 12 ? "Good morning" : (hour < 17 ? "Good afternoon" : "Good evening")
         // "kelvin.m" -> "kelvin": the web splits on dots, spaces, _ and -.
         let first = store.profile.username

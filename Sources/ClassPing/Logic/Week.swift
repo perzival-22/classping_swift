@@ -22,14 +22,14 @@ import Foundation
 /// Monday 2 -> 0, Saturday 7 -> 5, Sunday 1 -> 6. The web writes the same
 /// shift as `(getDay() + 6) % 7`, because JavaScript counts Sunday as 0.
 func dayIndex(of date: Date) -> Int {
-    let apple = Calendar.current.component(.weekday, from: date)
+    let apple = Calendar.autoupdatingCurrent.component(.weekday, from: date)
     return (apple + 5) % 7
 }
 
 /// A time of day as minutes from midnight: 10:40 AM -> 640. The unit every
 /// class time uses, so the grid can compare "now" with a class's start.
 func minuteOfDay(_ date: Date) -> Int {
-    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+    let c = Calendar.autoupdatingCurrent.dateComponents([.hour, .minute], from: date)
     return (c.hour ?? 0) * 60 + (c.minute ?? 0)
 }
 
@@ -76,7 +76,7 @@ func weekTitle(_ offset: Int) -> String {
 /// week crosses into a new month. `rangeLabel` in app/week/page.tsx.
 func weekRangeLabel(_ dates: [Date]) -> String {
     guard let first = dates.first, let last = dates.last else { return "" }
-    let cal = Calendar.current
+    let cal = Calendar.autoupdatingCurrent
     // "Oct", in English whatever the phone's language, like the web's "en-US".
     let month = DateFormatter()
     month.locale = Locale(identifier: "en_US_POSIX")

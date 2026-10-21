@@ -212,7 +212,7 @@ extension Store {
     /// change or in another time zone: a ClassPing time is always local time.
     /// Nil means "right away".
     private func trigger(for timing: ReminderTiming) -> UNNotificationTrigger? {
-        let cal = Calendar.current
+        let cal = Calendar.autoupdatingCurrent
         switch timing {
         case .once(let date):
             // Already due (a catch-up): no trigger, so iOS shows it at once.

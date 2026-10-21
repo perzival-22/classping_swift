@@ -61,7 +61,7 @@ struct AssignmentFormView: View {
         self.onFinish = onFinish
 
         // Where the dates start: the stored day if there is one, else 3 days out.
-        let inThreeDays = Calendar.current.date(byAdding: .day, value: 3, to: .now) ?? .now
+        let inThreeDays = Calendar.autoupdatingCurrent.date(byAdding: .day, value: 3, to: .now) ?? .now
         let storedDay = editing.flatMap { parseDay($0.due) }
         let storedClock = editing.flatMap { parseClock($0.dueTime) }
         let storedEnd = editing.flatMap { parseDay($0.repeatUntil) }
@@ -230,7 +230,7 @@ struct AssignmentFormView: View {
     /// current choice, the way the web lights up the active preset.
     private func presetChip(_ preset: Preset) -> some View {
         // The day this chip stands for, or nil for "No deadline".
-        let target = preset.days.flatMap { Calendar.current.date(byAdding: .day, value: $0, to: .now) }
+        let target = preset.days.flatMap { Calendar.autoupdatingCurrent.date(byAdding: .day, value: $0, to: .now) }
         let on = target.map { hasDate && dayOf($0) == dayOf(dueDay) } ?? !hasDate
         let accent = store.profile.accent
 
@@ -294,7 +294,7 @@ struct AssignmentFormView: View {
 
     /// The first day the date picker allows: today for new work, any day for an edit.
     private var earliestDay: Date {
-        editing == nil ? Calendar.current.startOfDay(for: .now) : .distantPast
+        editing == nil ? Calendar.autoupdatingCurrent.startOfDay(for: .now) : .distantPast
     }
 
     /// The deadline the form currently describes, in the stored shape.

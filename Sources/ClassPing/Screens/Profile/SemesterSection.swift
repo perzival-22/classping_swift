@@ -198,7 +198,7 @@ struct SemesterSection: View {
     /// Where "Add date" starts you: today, unless that would land on the
     /// wrong side of the other day; then the other day itself.
     private func firstGuess(for label: String) -> Date {
-        let today = Calendar.current.startOfDay(for: .now)
+        let today = Calendar.autoupdatingCurrent.startOfDay(for: .now)
         if label == "SEMESTER STARTS" {
             return min(today, dayStart(store.profile.termEnd) ?? today)
         }
