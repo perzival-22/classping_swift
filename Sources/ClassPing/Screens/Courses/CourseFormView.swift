@@ -1,7 +1,8 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Courses/CourseFormView.swift
-//  Phase:   5b (classes: add and edit), changed in 7a (the reminder footer)
-//           and 9b+ (accent fields and keyboard, D-55)
+//  Phase:   5b (classes: add and edit), changed in 7a (the reminder footer),
+//           9b+ (accent fields and keyboard, D-55) and 13b (the import
+//           button, and the term question after your first class)
 //  Ports:   components/ClassForm.tsx, app/class/new/page.tsx and
 //           app/class/[id]/edit/page.tsx (one form, two modes)
 //
@@ -10,7 +11,9 @@
 //           "Schedule not known yet" saves it with no times. New classes can
 //           be saved one after another with "Save & add another". Since
 //           9b+ every field wears your accent, and Done or a swipe down puts
-//           the keyboard away (the credit hours pad has no return key).
+//           the keyboard away (the credit hours pad has no return key). Since
+//           13b a new class can come from your timetable instead (the import
+//           sheet), and your very first class is followed by the term question.
 //
 
 import SwiftUI
@@ -54,6 +57,16 @@ struct CourseFormView: View {
     /// in-memory copy instead of adding a duplicate.
     @State private var draftID = UUID()
 
+    // NEW in Phase 13b
+    /// The import sheet is open, and whether it added anything (then the
+    /// form closes once the sheet has gone).
+    @State private var importing = false
+    @State private var imported = false
+    /// The term question is up after your first class, and whether "Save &
+    /// add another" sent it (then the form clears for the next class after).
+    @State private var askingTerm = false
+    @State private var anotherAfterTerm = false
+
     // NEW in Phase 9b+: which field has the keyboard, so Done can put it away.
     // MeetingFields gets `$focus` too, so Done also works in a room or label.
     @FocusState private var focus: CourseField?
@@ -79,6 +92,17 @@ struct CourseFormView: View {
         let accent = store.profile.accent
 
         Form {
+            // NEW in Phase 13b: a new class can come from your timetable.
+            if editing == nil {
+                Section {
+                    Button("Have your timetable? Paste or import it") { importing = true }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.brand(accent))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .listRowBackground(Theme.brandSoft(accent))
+            }
+
             // After "Save & add another": a quiet confirmation at the top.
             if let added {
                 Section {
@@ -189,6 +213,21 @@ struct CourseFormView: View {
         .onChange(of: notes) {
             if notes.count > 1000 { notes = String(notes.prefix(1000)) }
         }
+        // NEW in Phase 13b: the import sheet. Once it has gone, having added
+        // your timetable, the form closes too, the way Save closes it.
+        .sheet(isPresented: $importing, onDismiss: {
+            if imported {
+                imported = false
+                close()
+            }
+        }) {
+            ImportSheet(onImported: { imported = true })
+        }
+        // NEW in Phase 13b: the term question after your very first class.
+        // However it closes (Save, Not now, a swipe), the form carries on.
+        .sheet(isPresented: $askingTerm, onDismiss: { finish(another: anotherAfterTerm) }) {
+            TermSetupSheet(suggestion: nil)
+        }
     }
 
     // MARK: - Pieces
@@ -252,6 +291,11 @@ struct CourseFormView: View {
         problem = validationProblem(cleanName, creditInput)
         guard problem == nil else { return }
 
+        // NEW in Phase 13b: a first class on an empty, never-asked planner is
+        // followed by the term question. Read before adding, since adding is
+        // what makes the planner non-empty. `shouldOfferTerm` in ClassForm.tsx.
+        let askTerm = editing == nil && store.shouldOfferTermSetup
+
         // Tidy every meeting: a blank room or label is stored as nothing.
         let tidy = meetings.map { m in
             var t = m
@@ -297,9 +341,24 @@ struct CourseFormView: View {
             return
         }
 
+        // CHANGED in Phase 13b: the term question first, when it's due; the
+        // form finishes once it closes. Otherwise it finishes now.
+        if askTerm {
+            anotherAfterTerm = another
+            askingTerm = true
+        } else {
+            finish(another: another)
+        }
+    }
+
+    // NEW in Phase 13b: moved out of `save`, so the term question can run
+    // first. `finish` in ClassForm.tsx.
+    /// After a save: ready for the next class, or the form closes.
+    private func finish(another: Bool) {
         if another {
             // Clear the subject's own fields; the reminder choice carries over
             // to the next class, which is the point of typing a timetable in a row.
+            let savedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
             name = ""
             draftID = UUID()
             unscheduled = false
@@ -308,8 +367,17 @@ struct CourseFormView: View {
             instructor = ""
             credits = ""
             notes = ""
-            added = "\(cleanName) added. Ready for the next class."
-        } else if let onFinish {
+            added = "\(savedName) added. Ready for the next class."
+        } else {
+            close()
+        }
+    }
+
+    // NEW in Phase 13b
+    /// Closes the form: the Add menu's whole sheet when it passed `onFinish`,
+    /// or just this screen.
+    private func close() {
+        if let onFinish {
             onFinish()
         } else {
             dismiss()

@@ -4,7 +4,11 @@
 // web file: the web's own buildBackup run in node 24 on a full planner (a
 // deleted class with its work, a lab, a snooze with milliseconds, quiet hours,
 // progress, feeds and quotes the allowlist must keep out). The "web:" plan
-// lines are the web's describePlan for the same file.
+// lines are the web's describePlan for the same file. Changed in 13b: the
+// file's two deletedAt moments are now yesterday, set as the tests run. The
+// web wrote 2026-09-21 14:13:20 UTC, which turned 30 days old on 2026-10-21,
+// so opening the planner (D-75) cleared History and Reading for good and
+// three restore tests failed. The plan lines don't depend on the moment.
 // Uses an isolated Documents path, never the real planner file.
 // Run: tools/persistence-test.sh. Kelvin does not type this file.
 import Foundation
@@ -17,8 +21,11 @@ private let C2 = id("33333333-3333-4333-8333-333333333333")   // History, delete
 private let T1 = id("44444444-4444-4444-8444-444444444444")   // Essay
 private let T2 = id("55555555-5555-4555-8555-555555555555")   // Email advisor, Inbox
 private let T3 = id("66666666-6666-4666-8666-666666666666")   // Reading, went with History
-/// The moment History and Reading were deleted: 1790000000000 ms.
-private let GONE = Date(timeIntervalSince1970: 1_790_000_000)
+/// The moment History and Reading were deleted: a day before the tests run,
+/// to the whole second, so the 30-day clear-out on open (D-75) keeps them.
+private let GONE = Date(timeIntervalSince1970: (Date.now.timeIntervalSince1970 - 86_400).rounded(.down))
+/// The same moment in JavaScript's milliseconds, for the file.
+private let GONE_MS = Int(GONE.timeIntervalSince1970) * 1000
 
 @MainActor
 @Suite(.serialized) struct BackupStoreTests {
@@ -447,7 +454,7 @@ private let WEB_BACKUP = #"""
         "alarm": false,
         "reminders": [],
         "archived": true,
-        "deletedAt": 1790000000000
+        "deletedAt": \#(GONE_MS)
       }
     ],
     "tasks": [
@@ -494,7 +501,7 @@ private let WEB_BACKUP = #"""
         "reminder": false,
         "done": true,
         "kind": "quiz",
-        "deletedAt": 1790000000000
+        "deletedAt": \#(GONE_MS)
       }
     ],
     "grades": [
