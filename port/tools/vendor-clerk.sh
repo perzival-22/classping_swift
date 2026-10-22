@@ -36,8 +36,32 @@ for xc in root.rglob("*.xcstrings"):
     print(f"converted {xc.relative_to(root)}: {len(data.get('strings', {}))} keys, {len(per)} languages")
     xc.unlink()
 PY
-rm -rf "$TMP/clerk-ios/.git" "$TMP/clerk-ios/Examples" "$TMP/clerk-ios/Tests"
-mkdir -p "$(dirname "$DEST")"
-cp -r "$TMP/clerk-ios" "$DEST"
-printf 'clerk-ios %s, String Catalogs converted to .strings by docs/ios/tools/vendor-clerk.sh (D-96). Use ClerkKit only.\n' "$TAG" > "$DEST/VENDORED.txt"
-echo "VENDORED clerk-ios $TAG at $DEST ($(du -sh "$DEST" | cut -f1))"
+# Keep only what ClerkKit needs. It has no dependencies of its own, so the copy gets a manifest with
+# just that target: ClerkKitUI (can't build under xtool), the test targets (their folders aren't
+# copied) and the packages only those use (Nuke, PhoneNumberKit, the test helpers) are left out.
+mkdir -p "$DEST/Sources"
+cp -r "$TMP/clerk-ios/Sources/ClerkKit" "$DEST/Sources/ClerkKit"
+cp "$TMP/clerk-ios/LICENSE" "$DEST/LICENSE"
+cat > "$DEST/Package.swift" <<'SWIFT'
+// swift-tools-version: 6.2
+// ClerkKit from clerk-ios, vendored by port/tools/vendor-clerk.sh (D-96): the
+// upstream manifest cut down to the one target the app uses.
+import PackageDescription
+
+let package = Package(
+  name: "Clerk",
+  defaultLocalization: "en",
+  platforms: [.iOS(.v17), .macOS(.v14)],
+  products: [.library(name: "ClerkKit", targets: ["ClerkKit"])],
+  targets: [
+    .target(
+      name: "ClerkKit",
+      path: "Sources/ClerkKit",
+      resources: [.process("Resources")],
+      swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+    ),
+  ]
+)
+SWIFT
+printf 'clerk-ios %s (https://github.com/clerk/clerk-ios), ClerkKit only. String Catalogs converted to .strings and the manifest cut down by port/tools/vendor-clerk.sh (D-96), because xtool cannot run xcstringstool or actool on Linux. Redo with that script to upgrade; never edit by hand.\n' "$TAG" > "$DEST/VENDORED.txt"
+echo "VENDORED clerk-ios $TAG at $DEST ($(du -sh "$DEST" | cut -f1), $(find "$DEST" -type f | wc -l) files)"

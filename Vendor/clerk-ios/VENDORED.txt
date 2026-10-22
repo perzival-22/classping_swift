@@ -1,0 +1,1 @@
+clerk-ios 1.6.1 (https://github.com/clerk/clerk-ios), ClerkKit only. String Catalogs converted to .strings and the manifest cut down by port/tools/vendor-clerk.sh (D-96), because xtool cannot run xcstringstool or actool on Linux. Redo with that script to upgrade; never edit by hand.
