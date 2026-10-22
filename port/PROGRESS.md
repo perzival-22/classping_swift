@@ -85,9 +85,8 @@ did not finish (look in `.scratch/p14b/` and the reference for what landed).
   stops after the JWT header), and, for Google on a production instance, the
   app's `<bundle id>://callback` in Clerk Dashboard > Native applications >
   "Allowlist for mobile SSO redirect" (send him the exact string once the
-  bundle ID is read from `~/ClassPing/xtool.yml`). He also pasted the web's
-  `ADMIN_PASSWORD`; he was told to rotate it. It is not stored anywhere and
-  the app never uses it.
+  bundle ID is read from `~/ClassPing/xtool.yml`). No server secret belongs
+  in this repo or the app (IOS_APP.md 3.3); this repo is public.
 - **Account (D-97):** the first sync uses his own Google account, with D-90's
   guards first (backup and web export, read-only first pull, dry run).
 - **Phone steps owed** (asked in the batch after 14cd): 13b steps 5 and 6;

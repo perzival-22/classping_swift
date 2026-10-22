@@ -2,8 +2,8 @@
 # instead, so a phase pushed while the laptop sleeps is still checked (D-98).
 #   - tests: scripts/test-logic.sh and scripts/test-store.sh on Linux, the same
 #     scripts Kelvin runs in WSL. Every push.
-#   - ios-build: the app built for iOS without signing, on a Mac. Only on ios/*
-#     branches and by hand, because Mac minutes count ten times on a private repo.
+#   - ios-build: the app built for iOS without signing, on a Mac. On ios/*
+#     branches and by hand. (The repo is public, so Actions minutes are free.)
 name: checks
 
 on:
@@ -40,9 +40,18 @@ jobs:
 
   ios-build:
     if: startsWith(github.ref, 'refs/heads/ios/') || github.event_name == 'workflow_dispatch'
-    runs-on: macos-15
+    # The newest image and its newest Xcode: the laptop builds with Swift 6.4
+    # against a recent iOS SDK, and Xcode 16 (macos-15) rejects code that
+    # SDK accepts (UNUserNotificationCenterDelegate's sendability).
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
+      - name: Use the newest Xcode on the image
+        shell: bash
+        run: |
+          newest=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "::notice::using $newest"
+          sudo xcode-select -s "$newest"
       - name: Build for iOS (no signing)
         shell: bash
         # The compiler's errors are also written as annotations (::error::),
