@@ -3,8 +3,9 @@
 //  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card),
 //           11a (the settings: profile, grading scale, semester), 11b+c
 //           (the calendar file, and your data: backups, Recently Deleted,
-//           clearing), 13a (importing from your school) and 13b+ (the theme
-//           and app-color pills, the rounded-square photo)
+//           clearing), 13a (importing from your school), 13b+ (the theme
+//           and app-color pills, the rounded-square photo) and 14cd (your
+//           account and sync)
 //  Ports:   app/settings/page.tsx, moved into its own tab (D-19): the
 //           Profile, Appearance, Reminders (with its calendar export), Import
 //           from your school, Grading scale and Semester cards, and the backup
@@ -12,8 +13,8 @@
 //
 //  Summary: The Profile tab is ClassPing's settings: you, the look, your
 //           reminders and calendar, importing from your school, how letters
-//           are worked out, the term, and your data. Your account arrives
-//           with sync, your level in Phase 12.
+//           are worked out, the term, your data and, since 14cd, your
+//           account and sync. Your level arrives in Phase 12.
 //
 
 import SwiftUI
@@ -108,16 +109,10 @@ struct ProfileView: View {
                 // NEW in Phase 11b+c: back up, restore, Recently Deleted, clear.
                 DataSection()
 
-                // MARK: Coming to this tab
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("COMING TO THIS TAB")
-                    // CHANGED in Phase 11b+c: backups, Recently Deleted and
-                    // the calendar are here now. Only your account is left.
-                    comingRow("person.crop.circle", "Your account and sync")
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                // MARK: Account
+                // CHANGED in Phase 14cd: the "Coming to this tab" card was the
+                // last placeholder; your account and sync take its place.
+                AccountCard()
             }
             .padding(16)
         }
@@ -149,19 +144,6 @@ struct ProfileView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// One upcoming feature, shown as a label until its screen is available.
-    private func comingRow(_ symbol: String, _ title: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 15))
-                .foregroundStyle(Theme.faint)
-                .frame(width: 22)
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(Theme.ink)
-            Spacer(minLength: 0)
-        }
-    }
 }
 
 /// An avatar: your photo if you've chosen one, otherwise up to two initials

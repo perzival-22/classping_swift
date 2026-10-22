@@ -1,7 +1,7 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/ClassPingApp.swift
-//  Phase:   0 (housekeeping), changed in 7a (reminders), 7c (taps) and
-//           10a (a study alert's tap)
+//  Phase:   0 (housekeeping), changed in 7a (reminders), 7c (taps),
+//           10a (a study alert's tap) and 14cd (sign-in and sync)
 //  Ports:   app/layout.tsx (the root that wraps every screen), when the
 //           reminder loop in lib/store.tsx runs, and the notificationclick
 //           handler in public/sw.js
@@ -11,7 +11,8 @@
 //           environment. Since 7a it also keeps iOS's reminders in step with
 //           the store, and lets them show while the app is open. Since 7c a
 //           tap on one tells the store where to go. Since 10a a tap on a
-//           study timer's alert just opens the app as you left it.
+//           study timer's alert just opens the app as you left it. Since 14cd
+//           it sets up Clerk at launch and runs sync beside the store.
 //
 import SwiftUI
 import UIKit
@@ -32,9 +33,13 @@ struct ClassPingApp: App {
             // CHANGED in Phase 7a: `.modifier(ReminderSync())` keeps the
             // reminders up to date. It sits inside `.environment(store)`, so
             // it can read the store too.
+            // CHANGED in Phase 14cd: `SyncDriver` starts and feeds sync, and
+            // the engine goes into the environment for the Profile tab.
             RootView()
                 .modifier(ReminderSync())
+                .modifier(SyncDriver())
                 .environment(appDelegate.store)
+                .environment(appDelegate.sync)
         }
     }
 }
@@ -93,6 +98,35 @@ private struct ReminderSync: ViewModifier {
     }
 }
 
+/// Starts sync when someone is signed in (and again when that changes),
+/// tells it whenever the planner changes, and pulls each time the app comes
+/// back to the screen, so changes made on the web show up. The web does the
+/// same with its sync effects in lib/store.tsx.
+// NEW in Phase 14cd
+private struct SyncDriver: ViewModifier {
+    @Environment(Store.self) private var store
+    @Environment(SyncEngine.self) private var sync
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content
+            // Runs at launch and whenever the signed-in account changes:
+            // Clerk restores a saved session a moment after launch.
+            .task(id: sync.account.userID) {
+                await sync.accountChanged()
+            }
+            // Any change to what gets saved is a change to send.
+            .onChange(of: store.document) {
+                sync.plannerChanged()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task { await sync.pullAndPush() }
+                }
+            }
+    }
+}
+
 /// Registers notifications in UIKit's launch lifecycle, before iOS delivers
 /// the response that opened the app. The adaptor keeps this object alive.
 @MainActor
@@ -100,11 +134,17 @@ final class ClassPingAppDelegate: NSObject, UIApplicationDelegate {
     /// One loaded store, shared by notification handling and SwiftUI.
     let store = Store.load()
     private lazy var notificationDelegate = NotificationDelegate(store: store)
+    /// Sync for that store. NEW in Phase 14cd. `lazy` so it can use `store`,
+    /// which is set up first.
+    lazy var sync = SyncEngine(store: store)
 
     /// Register before launch finishes, including launches from a notification.
     func application(_ application: UIApplication,
                      willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = notificationDelegate
+        // NEW in Phase 14cd: Clerk is set up before any screen asks who is
+        // signed in.
+        Account.configure()
         return true
     }
 }

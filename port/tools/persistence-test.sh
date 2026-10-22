@@ -22,7 +22,7 @@ trap 'rm -rf -- "$PROBE"' EXIT
 cd "$PROBE"
 swift package init --type library --name CPLogic > /dev/null 2>&1
 rm -f Sources/CPLogic/*.swift Tests/CPLogicTests/*.swift
-for f in Models Records Profile Store Store+Persistence Store+Assignments Store+Courses Assignment+Deadline Assignment+TaskView Models+Reminders Store+Planning Store+Notes Store+Grades Store+Profile Models+Backup Store+Backup Store+Trash Store+Import Models+Rows; do
+for f in Models Records Profile Store Store+Persistence Store+Assignments Store+Courses Assignment+Deadline Assignment+TaskView Models+Reminders Store+Planning Store+Notes Store+Grades Store+Profile Models+Backup Store+Backup Store+Trash Store+Import Models+Rows Store+Sync; do
   if [ -f "$SRC/$f.swift" ]; then cp "$SRC/$f.swift" Sources/CPLogic/; fi
 done
 cp "$SRC/Logic/"*.swift Sources/CPLogic/
