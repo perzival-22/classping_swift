@@ -15,24 +15,46 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Python (test-store.sh uses it to isolate the planner file)
         run: command -v python3 || (apt-get update && apt-get install -y python3)
       - name: Logic tests
-        run: bash scripts/test-logic.sh
+        shell: bash
+        run: |
+          swift --version | head -1 | while read -r line; do echo "::notice::$line"; done
+          set -o pipefail
+          bash scripts/test-logic.sh 2>&1 | tee logic.log
+          grep -E "Test run with" logic.log | while read -r line; do echo "::notice::logic: $line"; done
       - name: Store tests
-        run: bash scripts/test-store.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/test-store.sh 2>&1 | tee store.log
+          grep -E "Test run with" store.log | while read -r line; do echo "::notice::store: $line"; done
+      - name: Failures as annotations
+        if: failure()
+        shell: bash
+        run: |
+          cat logic.log store.log 2>/dev/null | grep -E "error:|✘" | sort -u | head -40 \
+            | while read -r line; do echo "::error::$line"; done
 
   ios-build:
     if: startsWith(github.ref, 'refs/heads/ios/') || github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build for iOS (no signing)
         shell: bash
+        # The compiler's errors are also written as annotations (::error::),
+        # because a cloud session can read those through the API when it
+        # can't download the full log.
         run: |
-          set -o pipefail
-          xcodebuild -version
+          xcodebuild -version | while read -r line; do echo "::notice::$line"; done
+          status=0
           xcodebuild -scheme ClassPing -destination 'generic/platform=iOS' \
             -skipMacroValidation -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -80
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || status=$?
+          tail -80 build.log
+          grep -E "error:|\*\* BUILD|xcodebuild: error" build.log | sort -u | head -40 \
+            | while read -r line; do echo "::error::$line"; done
+          exit $status
