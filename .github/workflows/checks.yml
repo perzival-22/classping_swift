@@ -1,0 +1,38 @@
+# checks.yml: the checks Claude used to run on Kelvin's laptop, run by GitHub
+# instead, so a phase pushed while the laptop sleeps is still checked (D-98).
+#   - tests: scripts/test-logic.sh and scripts/test-store.sh on Linux, the same
+#     scripts Kelvin runs in WSL. Every push.
+#   - ios-build: the app built for iOS without signing, on a Mac. Only on ios/*
+#     branches and by hand, because Mac minutes count ten times on a private repo.
+name: checks
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    container: swift:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python (test-store.sh uses it to isolate the planner file)
+        run: command -v python3 || (apt-get update && apt-get install -y python3)
+      - name: Logic tests
+        run: bash scripts/test-logic.sh
+      - name: Store tests
+        run: bash scripts/test-store.sh
+
+  ios-build:
+    if: startsWith(github.ref, 'refs/heads/ios/') || github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for iOS (no signing)
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -version
+          xcodebuild -scheme ClassPing -destination 'generic/platform=iOS' \
+            -skipMacroValidation -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -80
