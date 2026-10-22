@@ -3,7 +3,8 @@
 //  Phase:   5a (the new tab bar and the week), changed in 7a (Reminders card),
 //           11a (the settings: profile, grading scale, semester), 11b+c
 //           (the calendar file, and your data: backups, Recently Deleted,
-//           clearing) and 13a (importing from your school)
+//           clearing), 13a (importing from your school) and 13b+ (the theme
+//           and app-color pills, the rounded-square photo)
 //  Ports:   app/settings/page.tsx, moved into its own tab (D-19): the
 //           Profile, Appearance, Reminders (with its calendar export), Import
 //           from your school, Grading scale and Semester cards, and the backup
@@ -56,11 +57,13 @@ struct ProfileView: View {
                 // MARK: Appearance
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("APPEARANCE")
-                    Picker("Theme", selection: $store.profile.theme) {
-                        Text("Light").tag(Profile.Theme.light)
-                        Text("Dark").tag(Profile.Theme.dark)
-                    }
-                    .pickerStyle(.segmented)
+                    // CHANGED in Phase 13b+: round pills, each in its own color
+                    // (D-88). Light is cream and Dark is charcoal whatever the
+                    // phone is showing now; the chosen one has a ring and a check.
+                    PillPicker(label: "Theme", selection: $store.profile.theme, options: [
+                        .init(value: .light, title: "Light", colors: Theme.themePill(.light)),
+                        .init(value: .dark, title: "Dark", colors: Theme.themePill(.dark))
+                    ])
                     // NEW in Phase 11a: the web's line under each choice.
                     footnote(store.profile.theme == .dark
                              ? "Warm charcoal, with the same soft surfaces and your app color."
@@ -68,11 +71,12 @@ struct ProfileView: View {
 
                     sectionLabel("APP COLOR")
                         .padding(.top, 6)
-                    Picker("App color", selection: $store.profile.accent) {
-                        Text("Baby Pink").tag(Profile.Accent.babypink)
-                        Text("Ocean").tag(Profile.Accent.ocean)
-                    }
-                    .pickerStyle(.segmented)
+                    // CHANGED in Phase 13b+: Baby Pink stays pink and Ocean stays
+                    // blue, so you can see both while you're on either.
+                    PillPicker(label: "App color", selection: $store.profile.accent, options: [
+                        .init(value: .babypink, title: "Baby Pink", colors: Theme.accentPill(.babypink)),
+                        .init(value: .ocean, title: "Ocean", colors: Theme.accentPill(.ocean))
+                    ])
                     footnote("Baby Pink or Ocean, for your highlights and primary actions.")
                 }
                 .padding(16)
@@ -160,10 +164,10 @@ struct ProfileView: View {
     }
 }
 
-/// A round avatar: your photo if you've chosen one, otherwise up to two
-/// initials on the brand gradient, or a person symbol before you've set a
-/// name. The tab bar uses a small one, the Profile tab a big one. Phase 12
-/// adds the pet-tier ring.
+/// An avatar: your photo if you've chosen one, otherwise up to two initials
+/// on the brand gradient, or a person symbol before you've set a name. It's
+/// a circle by default (the tab bar's), or a rounded square when you give it a
+/// `corner` (the Profile banner's). Phase 12 adds the pet-tier ring.
 struct AvatarBadge: View {
     // NEW in Phase 11a: the photo comes from the store, so every badge
     // shows it without each caller passing it in.
@@ -172,10 +176,20 @@ struct AvatarBadge: View {
     let name: String
     let size: CGFloat
     let accent: Profile.Accent
+    /// NEW in Phase 13b+: nil is a circle; a number is a rounded square with
+    /// that corner radius. A default value means the older callers don't change.
+    var corner: CGFloat? = nil
+
+    /// The badge's outline. A rounded rectangle whose radius is half its side
+    /// is a perfect circle, so one shape covers both looks.
+    private var outline: RoundedRectangle {
+        RoundedRectangle(cornerRadius: corner ?? size / 2,
+                         style: corner == nil ? .circular : .continuous)
+    }
 
     var body: some View {
         ZStack {
-            Circle().fill(Theme.brandGradient(accent))
+            outline.fill(Theme.brandGradient(accent))
             // CHANGED in Phase 11a: two initials, as on the web ("KM").
             let letters = avatarInitials(name.trimmingCharacters(in: .whitespaces))
             if letters.isEmpty {
@@ -193,7 +207,7 @@ struct AvatarBadge: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Circle())
+        .clipShape(outline)
         // The tab's own label says "Profile", so VoiceOver skips the picture.
         .accessibilityHidden(true)
     }

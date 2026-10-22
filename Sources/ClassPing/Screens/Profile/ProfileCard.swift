@@ -1,13 +1,16 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Profile/ProfileCard.swift
-//  Phase:   11a (settings: you, the look, grading and the term)
+//  Phase:   11a (settings: you, the look, grading and the term), changed in
+//           13b+ (the banner)
 //  Ports:   the Profile card of app/settings/page.tsx and the picture
 //           handling of lib/avatar.ts (`fileToAvatarDataUrl`)
 //
-//  Summary: Your picture and your name. Tap the picture to choose a photo:
-//           it's cropped to a square, shrunk to 256 pixels and kept in your
-//           profile, on the phone, until sync can upload it (D-65). The name
-//           saves when you leave the field. Both save as you go (D-68).
+//  Summary: Your picture and your name, under a banner. Tap the picture to
+//           choose a photo: it's cropped to a square, shrunk to 256 pixels
+//           and kept in your profile, on the phone, until sync can upload it
+//           (D-65). The name shows as text on the banner; the pencil opens a
+//           field below it to change it (D-86). The name saves when you leave
+//           the field. Both save as you go (D-68).
 //
 
 import SwiftUI
@@ -26,76 +29,79 @@ struct ProfileCard: View {
     /// The name as typed; saved when the field loses focus.
     @State private var name = ""
     @FocusState private var typing: Bool
+    /// NEW in Phase 13b+: true while the name field is open under the banner.
+    @State private var editing = false
     /// What went wrong with the last photo or save, in words, or nil.
     @State private var problem: String? = nil
 
     var body: some View {
         let accent = store.profile.accent
-        // Read here, not inside the picker's label: that label isn't drawn
-        // on the main actor, where the store lives, so it gets a plain copy.
-        let username = store.profile.username
+        // CHANGED in Phase 13b+: while the field is open the banner shows what
+        // you're typing; otherwise it shows the saved name.
+        let shown = editing ? name.trimmingCharacters(in: .whitespaces)
+                            : store.profile.username
 
-        VStack(spacing: 14) {
-            Text("PROFILE")
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(1.2)
-                .foregroundStyle(Theme.faint)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityAddTraits(.isHeader)
+        // Spacing 0: the banner runs edge to edge, so the card's padding
+        // moves to the part under it.
+        VStack(spacing: 0) {
+            // NEW in Phase 13b+: the banner replaces the old "PROFILE" label
+            // and the centered round picture.
+            ProfileBanner(name: shown, accent: accent, editing: editing,
+                          onEdit: toggleEditing, picked: $picked)
 
-            // The picture is the button. `PhotosPicker` opens your photo
-            // library; what you choose arrives in `picked`.
-            PhotosPicker(selection: $picked, matching: .images) {
-                ZStack(alignment: .bottomTrailing) {
-                    AvatarBadge(name: username, size: 90, accent: accent)
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white)
-                        .frame(width: 30, height: 30)
-                        .background(Theme.brand(accent), in: Circle())
+            VStack(spacing: 10) {
+                if let problem {
+                    Text(problem)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.danger)
+                } else {
+                    Text("Tap your photo to change it")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.muted)
+                }
+                // Back to initials. The web has no way to do this; it's one button.
+                if store.profile.avatarURL != nil {
+                    Button("Remove photo") {
+                        problem = store.setAvatar(nil) ? nil : "Couldn't save on this device. Try again."
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .frame(minHeight: 44)
+                }
+
+                // NEW in Phase 13b+: the field only exists while you're
+                // editing, so the card is just the banner the rest of the time.
+                if editing {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("USERNAME")
+                            .font(.system(size: 11, weight: .semibold))
+                            .tracking(1)
+                            .foregroundStyle(Theme.faint)
+                        TextField("Your name", text: $name)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .focused($typing)
+                            .submitLabel(.done)
+                            .onSubmit { typing = false }
+                            .inputField(accent)
+                            // The field appears when you tap the pencil, so
+                            // it takes the keyboard as it arrives.
+                            .onAppear { typing = true }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .accessibilityLabel("Change profile picture")
-
-            if let problem {
-                Text(problem)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(Theme.danger)
-            } else {
-                Text("Tap to change photo")
-                    .font(.footnote)
-                    .foregroundStyle(Theme.muted)
-            }
-            // Back to initials. The web has no way to do this; it's one button.
-            if store.profile.avatarURL != nil {
-                Button("Remove photo") {
-                    problem = store.setAvatar(nil) ? nil : "Couldn't save on this device. Try again."
-                }
-                .font(.footnote.weight(.semibold))
-                .frame(minHeight: 44)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("USERNAME")
-                    .font(.system(size: 11, weight: .semibold))
-                    .tracking(1)
-                    .foregroundStyle(Theme.faint)
-                TextField("Your name", text: $name)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($typing)
-                    .submitLabel(.done)
-                    .onSubmit { saveName() }
-                    .inputField(accent)
-            }
+            .padding(20)
         }
-        .padding(20)
         .frame(maxWidth: .infinity)
         .cardStyle()
         .onAppear { name = store.profile.username }
-        // Leaving the field saves it, as the web saves the term name on blur.
+        // Leaving the field saves it, as the web saves the term name on blur,
+        // and closes the field. CHANGED in Phase 13b+: it also closes it.
         .onChange(of: typing) { _, isTyping in
-            if !isTyping { saveName() }
+            if !isTyping && editing {
+                saveName()
+                editing = false
+            }
         }
         // A new pick: read it, shrink it, save it. `.task(id:)` cancels the
         // last one if you pick again before it finishes.
@@ -104,6 +110,18 @@ struct ProfileCard: View {
             await use(item)
             // Cleared, so choosing the same photo again still counts as new.
             picked = nil
+        }
+    }
+
+    /// The banner's pencil (or its check mark). Open: show the field with the
+    /// saved name in it. Closed: put the keyboard away, which saves the name
+    /// through `onChange(of: typing)` above. NEW in Phase 13b+.
+    private func toggleEditing() {
+        if editing {
+            typing = false
+        } else {
+            name = store.profile.username
+            editing = true
         }
     }
 
