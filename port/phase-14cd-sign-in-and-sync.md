@@ -14,8 +14,11 @@ until the phone steps in section 5 have worked.**
 39775758716): logic **633/633** (+10, `SyncPlanTests`), store **154/154**
 (+10, `SyncStoreTests`, a fake server, no network) on Swift 6.4.1; iOS build
 green on Xcode 26.6. Your xtool built step 2 too (a throwaway clone of the
-branch on the laptop, 95 s, only the SDKs' own deprecation warnings). Sign-in,
-Supabase and the first sync have **not run on a phone**.
+branch on the laptop, 95 s, only the SDKs' own deprecation warnings). The
+redirect fix (`91dee1f`, D-102, run 39779640677): logic **633/633**, store
+**154/154** on Swift 6.4.1, iOS build green on Xcode 26.6. Kelvin's first tap
+(08:28) reached Google's step and failed on the redirect; nothing after
+sign-in has run on a phone yet.
 
 ## 1. Goal
 

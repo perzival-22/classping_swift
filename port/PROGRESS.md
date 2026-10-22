@@ -8,6 +8,26 @@ generated_by: skills-for-architects
 
 *Update at the end of every session. Start every session by reading IOS_APP.md, this file and the current phase file, then listing `~/ClassPing/Sources/ClassPing/`.*
 
+## Current handoff (2026-10-22, 08:38)
+
+This section supersedes the "08:40" handoff below, kept as history.
+
+- **First phone run (08:28):** Continue with Google failed with Clerk's
+  "redirect url ... does not match an authorized redirect URI" for
+  `XTL-V6P7S9UKM7.space.classping.ios://callback`. xtool installs the app as
+  `XTL-<team>.space.classping.ios` and ClerkKit built its default redirect
+  from that. Kelvin's dashboard is set up right (Native API on,
+  `space.classping.ios://callback` allowlisted, no iOS app registered, which
+  OAuth doesn't need).
+- **Fixed (D-102, `91dee1f` on `ios/phase-14cd-sign-in-and-sync`):**
+  `Account.configure()` pins the redirect and callback scheme to
+  `space.classping.ios`. Run 39779640677 green: logic **633/633**, store
+  **154/154** on Swift 6.4.1, iOS build on Xcode 26.6. Not tried on a phone.
+- **Next for Kelvin:** pull the branch, `xtool dev`, and redo the note's
+  section 5 from step 1. If the message still names an `XTL-` URL, the old
+  build is still installed.
+- **Next for Claude:** unchanged from 08:40.
+
 ## Current handoff (2026-10-22, 08:40)
 
 This section supersedes the "02:40" handoff below, kept as history.
