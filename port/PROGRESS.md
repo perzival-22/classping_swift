@@ -8,6 +8,40 @@ generated_by: skills-for-architects
 
 *Update at the end of every session. Start every session by reading IOS_APP.md, this file and the current phase file, then listing `~/ClassPing/Sources/ClassPing/`.*
 
+## Current handoff (2026-10-22, 02:40)
+
+This section supersedes the "01:55" handoff below, kept as history. Read it
+from the newest branch: `ios/phase-14cd-sign-in-and-sync`.
+
+- **14b is ready to merge:** `ios/phase-14b-row-mapping`, every check green
+  (Linux logic 623 and store 144 on Swift 6.4.1; iOS build on Xcode 26.6).
+  Kelvin: `git fetch && git switch main && git merge --ff-only
+  origin/ios/phase-14b-row-mapping`. Nothing to check on the phone.
+- **CI false failure, fixed:** the iOS step's annotation `grep` ended the step
+  when a successful build had no error line (pipefail), so a green build
+  showed red (run 39730111732 on 14b, 39730367136 on 14cd). Fixed in
+  `checks.yml` on both branches; 14cd merges 14b so both fast-forward in order.
+- **14cd started (D-100):** branch `ios/phase-14cd-sign-in-and-sync`, stacked
+  on 14b. Step 1 adds the SDKs (`Package.swift`, `Vendor/clerk-ios` from the
+  updated `port/tools/vendor-clerk.sh`). Builds on GitHub's Xcode 26.6 and on
+  the laptop's xtool (throwaway clone, 71 s). No app code uses them yet.
+  **Don't merge 14cd until the phase is done.**
+- **Next session, 14cd step 2 onward,** in the order of
+  [phase-14cd-plan.md](phase-14cd-plan.md): Info.plist URL type,
+  `Sync/SyncConfig.swift`, `Sync/Auth.swift`, the Supabase client (check the
+  `accessToken` option in supabase-swift 2.55.4's source first), snapshot and
+  `Store+Sync.swift` with store tests on a fake transport, Realtime, the
+  account card and the first-sync review.
+- **Still needed from Kelvin** (none blocks step 2 to the store tests): the
+  full Supabase anon key; `space.classping.ios://callback` in Clerk Dashboard
+  > Native applications (and the Native API on); read access for the Claude
+  app to `perzival-22/ClassPing` (the cloud can't read `lib/` without it; the
+  plan already summarizes the sync code).
+- **Laptop scratch from this session:** `docs/ios/.scratch/p14b/`
+  (`gen.ts`, `copylib.py`, `weblib/`, `verify.sh`, `zones.sh`,
+  `kelvin14b.sh`, `out/`) and `.scratch/p14cd/xtool-branch.sh` (builds any
+  pushed branch with xtool in a throwaway clone). Safe to delete from WSL.
+
 ## Current handoff (2026-10-22, 01:55)
 
 This section supersedes the "01:25" handoff below, kept as history.
