@@ -340,3 +340,31 @@ extension Store {
         return (try? data.write(to: snapshotURL(userID: userID), options: .atomic)) != nil
     }
 }
+
+// MARK: - After the account is deleted (NEW in Phase 14e)
+
+extension Store {
+    /// Empties this phone after its account was deleted: every class,
+    /// assignment, grade, note and plan, your progress and your preferences,
+    /// and the account's sync snapshot. The web clears the browser's whole
+    /// store at that point (`localStorage.clear()` in `handleDeleteAccount`),
+    /// so the phone starts as new too. Gives back false, and changes
+    /// nothing, when the save fails.
+    @discardableResult
+    func eraseAfterAccountDeleted(userID: String?) -> Bool {
+        let before = document
+        replaceAll(with: PlannerDocument(courses: [], assignments: [], grades: [], notes: [],
+                                         taskPlans: [], studySessions: [], profile: Profile(),
+                                         game: nil))
+        save()
+        if lastSaveFailed {
+            replaceAll(with: before)
+            return false
+        }
+        pendingUndo = nil
+        preRestore = nil
+        // `try?` because a snapshot that was never written is nothing to remove.
+        if let userID { try? FileManager.default.removeItem(at: Store.snapshotURL(userID: userID)) }
+        return true
+    }
+}

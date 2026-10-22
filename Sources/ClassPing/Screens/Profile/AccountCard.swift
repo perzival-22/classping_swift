@@ -1,13 +1,16 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Profile/AccountCard.swift
-//  Phase:   14cd (sign-in and sync)
+//  Phase:   14cd (sign-in and sync), changed in 14e (delete account)
 //  Ports:   the Account card of app/settings/page.tsx (who you're signed in
-//           as, the sync row, sign out) and the web's "Continue with Google"
+//           as, the sync row, sign out and, from 14e, Delete account with
+//           `handleDeleteAccount`) and the web's "Continue with Google"
 //           sign-in; the first-sync review is the phone's own (D-90, D-97)
 //
 //  Summary: Signing in, the sync row, and the review a first sync shows
 //           before anything is sent. Replaces the "Your account and sync"
-//           placeholder on the Profile tab.
+//           placeholder on the Profile tab. Signed in (14e), Delete account
+//           asks twice, then removes the account, its data on the server
+//           and its data on this phone (D-106).
 //
 
 import SwiftUI
@@ -19,6 +22,14 @@ struct AccountCard: View {
     /// The review sheet is open. It opens by itself when a first sync is
     /// ready to review, and from the card's button after "Later".
     @State private var reviewing = false
+
+    // NEW in Phase 14e
+    /// Delete account was tapped once: the warning and the two buttons show.
+    @State private var confirmDelete = false
+    /// True while the server deletes the account.
+    @State private var deleting = false
+    /// Why the last try didn't delete, or nil.
+    @State private var deleteError: String? = nil
 
     var body: some View {
         let accent = store.profile.accent
@@ -133,11 +144,87 @@ struct AccountCard: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(Theme.muted)
-                .disabled(sync.account.working)
+                .disabled(sync.account.working || deleting)
             }
             .font(.system(size: 14, weight: .semibold))
             .frame(minHeight: 44)
+
+            // NEW in Phase 14e
+            deleteAccount(accent)
         }
+    }
+
+    // MARK: Deleting the account (NEW in Phase 14e)
+
+    /// Delete account: one tap shows what goes and two buttons; it can't be
+    /// undone, so it asks twice, as on the web.
+    @ViewBuilder
+    private func deleteAccount(_ accent: Profile.Accent) -> some View {
+        if confirmDelete {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("This permanently deletes your account, cloud data and reminders. Your on-device data is cleared too. This can't be undone, export first if you want a copy.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let deleteError {
+                    Text(deleteError)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 10) {
+                    Button {
+                        confirmDelete = false
+                        deleteError = nil
+                    } label: {
+                        Text("Keep my account").frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(Theme.muted)
+                    Button {
+                        Task { await deleteForever() }
+                    } label: {
+                        Text(deleting ? "Deleting…" : "Delete forever").frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.danger)
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .disabled(deleting)
+            }
+            .padding(.top, 6)
+        } else {
+            Button("Delete account") { confirmDelete = true }
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.danger)
+                .frame(minHeight: 44)
+        }
+    }
+
+    /// "Delete forever": the server removes the account, its rows and its
+    /// photo. Then the phone signs out and empties itself, as the web clears
+    /// the browser. Clerk wants a recent sign-in for this; without one,
+    /// nothing is deleted and the card says how to get one.
+    private func deleteForever() async {
+        deleting = true
+        deleteError = nil
+        // Kept before signing out, to remove this account's sync snapshot.
+        let userID = sync.account.userID
+        switch deleteOutcome(await WebAPI.deleteAccount()) {
+        case .deleted:
+            // The account is gone, so signing out may report an error; it
+            // doesn't matter, and isn't shown.
+            await sync.account.signOut()
+            sync.account.problem = nil
+            await sync.accountChanged()
+            store.eraseAfterAccountDeleted(userID: userID)
+            confirmDelete = false
+        case .needsFreshSignIn:
+            deleteError = "For your safety, deleting needs a recent sign-in. Sign out, sign back in with Google, then delete within 10 minutes."
+        case .failed(let words):
+            deleteError = words
+        }
+        deleting = false
     }
 
     /// The sync row's title. Before the first sync it says so instead.

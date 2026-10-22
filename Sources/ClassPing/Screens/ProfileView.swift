@@ -4,8 +4,8 @@
 //           11a (the settings: profile, grading scale, semester), 11b+c
 //           (the calendar file, and your data: backups, Recently Deleted,
 //           clearing), 13a (importing from your school), 13b+ (the theme
-//           and app-color pills, the rounded-square photo) and 14cd (your
-//           account and sync)
+//           and app-color pills, the rounded-square photo), 14cd (your
+//           account and sync) and 14e (email settings, rating the app)
 //  Ports:   app/settings/page.tsx, moved into its own tab (D-19): the
 //           Profile, Appearance, Reminders (with its calendar export), Import
 //           from your school, Grading scale and Semester cards, and the backup
@@ -14,7 +14,8 @@
 //  Summary: The Profile tab is ClassPing's settings: you, the look, your
 //           reminders and calendar, importing from your school, how letters
 //           are worked out, the term, your data and, since 14cd, your
-//           account and sync. Your level arrives in Phase 12.
+//           account and sync. Signed in (14e), your email settings and a
+//           card to rate the app join them. Your level arrives in Phase 12.
 //
 
 import SwiftUI
@@ -22,6 +23,8 @@ import UIKit
 
 struct ProfileView: View {
     @Environment(Store.self) private var store
+    // NEW in Phase 14e: the email and review cards need a sign-in.
+    @Environment(SyncEngine.self) private var sync
 
     var body: some View {
         // `@Bindable` lets the pickers write into the store (Phase 3).
@@ -87,6 +90,13 @@ struct ProfileView: View {
                 // MARK: Reminders
                 RemindersSection()
 
+                // MARK: Email
+                // NEW in Phase 14e: the web keeps these switches inside its
+                // Reminders card; they live on the server, so signed in only.
+                if sync.account.userID != nil {
+                    EmailPrefsCard()
+                }
+
                 // MARK: Calendar
                 // NEW in Phase 11b+c: the timetable as a .ics file. The web
                 // puts this inside its Reminders card; here it's its own card.
@@ -108,6 +118,12 @@ struct ProfileView: View {
                 // MARK: Your data
                 // NEW in Phase 11b+c: back up, restore, Recently Deleted, clear.
                 DataSection()
+
+                // MARK: Rate ClassPing
+                // NEW in Phase 14e: just above the Account card, as on the web.
+                if sync.account.userID != nil {
+                    ReviewCard()
+                }
 
                 // MARK: Account
                 // CHANGED in Phase 14cd: the "Coming to this tab" card was the
@@ -184,7 +200,8 @@ struct AvatarBadge: View {
                     .foregroundStyle(.white)
             }
             // NEW in Phase 11a: the photo, laid over the initials.
-            if let uri = store.profile.avatarURL, uri.hasPrefix("data:image/") {
+            // CHANGED in Phase 14e: an uploaded (https) photo shows too.
+            if let uri = store.profile.avatarURL, isPersistableAvatar(uri) {
                 AvatarPhoto(uri: uri)
             }
         }
@@ -195,8 +212,9 @@ struct AvatarBadge: View {
     }
 }
 
-/// A stored `data:` picture, turned back into an image once per picture
-/// rather than on every redraw. NEW in Phase 11a.
+/// A stored picture, turned back into an image once per picture rather than
+/// on every redraw. NEW in Phase 11a; CHANGED in Phase 14e: through
+/// `AvatarLoader`, so an uploaded (https) photo is downloaded.
 private struct AvatarPhoto: View {
     let uri: String
     /// The decoded picture, or nil until it's ready (the initials show).
@@ -214,7 +232,7 @@ private struct AvatarPhoto: View {
             }
             // Runs when the badge appears and again when the picture changes.
             .task(id: uri) {
-                image = avatarImageData(uri).flatMap { UIImage(data: $0) }
+                image = await AvatarLoader.image(for: uri)
             }
     }
 }

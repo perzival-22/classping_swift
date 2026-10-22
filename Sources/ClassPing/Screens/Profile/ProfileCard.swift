@@ -1,14 +1,17 @@
 //
 //  File:    ~/ClassPing/Sources/ClassPing/Screens/Profile/ProfileCard.swift
 //  Phase:   11a (settings: you, the look, grading and the term), changed in
-//           13b+ (the banner)
+//           13b+ (the banner) and 14e (the upload)
 //  Ports:   the Profile card of app/settings/page.tsx and the picture
-//           handling of lib/avatar.ts (`fileToAvatarDataUrl`)
+//           handling of lib/avatar.ts (`fileToAvatarDataUrl`, and from 14e
+//           `uploadAvatar`)
 //
 //  Summary: Your picture and your name, under a banner. Tap the picture to
-//           choose a photo: it's cropped to a square, shrunk to 256 pixels
-//           and kept in your profile, on the phone, until sync can upload it
-//           (D-65). The name shows as text on the banner; the pencil opens a
+//           choose a photo: it's cropped to a square and shrunk to 256
+//           pixels. Signed in (14e), it's uploaded to the web's storage and
+//           the profile keeps its short address; signed out, or if the
+//           upload doesn't work, it's kept inside your profile (D-65,
+//           D-105). The name shows as text on the banner; the pencil opens a
 //           field below it to change it (D-86). The name saves when you leave
 //           the field. Both save as you go (D-68).
 //
@@ -23,6 +26,8 @@ import UIKit
 
 struct ProfileCard: View {
     @Environment(Store.self) private var store
+    // NEW in Phase 14e: signed in, a new photo is uploaded.
+    @Environment(SyncEngine.self) private var sync
 
     /// The photo chosen in the picker, until it's been read and saved.
     @State private var picked: PhotosPickerItem? = nil
@@ -33,6 +38,8 @@ struct ProfileCard: View {
     @State private var editing = false
     /// What went wrong with the last photo or save, in words, or nil.
     @State private var problem: String? = nil
+    /// NEW in Phase 14e: true while a new photo is uploading.
+    @State private var uploading = false
 
     var body: some View {
         let accent = store.profile.accent
@@ -55,7 +62,8 @@ struct ProfileCard: View {
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(Theme.danger)
                 } else {
-                    Text("Tap your photo to change it")
+                    // CHANGED in Phase 14e: says so while a photo uploads.
+                    Text(uploading ? "Saving your photo…" : "Tap your photo to change it")
                         .font(.footnote)
                         .foregroundStyle(Theme.muted)
                 }
@@ -145,7 +153,22 @@ struct ProfileCard: View {
         }
         switch avatarURI(from: data) {
         case .success(let uri):
-            problem = store.setAvatar(uri) ? nil : "Couldn't save on this device. Try again."
+            // NEW in Phase 14e: signed in, upload first and keep the short
+            // address, as the web's `uploadAvatar` does before it saves; on
+            // any failure the photo stays inside the profile as before.
+            var toSave = uri
+            if sync.account.userID != nil {
+                uploading = true
+                if let url = await WebAPI.uploadAvatar(uri) {
+                    toSave = versionedAvatarURL(url, at: .now)
+                    // The phone already has this photo; no need to download it back.
+                    if let image = avatarImageData(uri).flatMap({ UIImage(data: $0) }) {
+                        AvatarLoader.remember(image, for: toSave)
+                    }
+                }
+                uploading = false
+            }
+            problem = store.setAvatar(toSave) ? nil : "Couldn't save on this device. Try again."
         case .failure(let reason):
             problem = reason.message
         }

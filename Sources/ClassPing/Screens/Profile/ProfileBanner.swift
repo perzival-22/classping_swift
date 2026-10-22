@@ -95,12 +95,9 @@ struct ProfileBanner: View {
             topTrailingRadius: Theme.Radius.card,
             style: .continuous))
         // Decoded once per picture, not on every redraw (as AvatarPhoto does).
+        // CHANGED in Phase 14e: an uploaded (https) photo is downloaded too.
         .task(id: store.profile.avatarURL) {
-            guard let uri = store.profile.avatarURL, uri.hasPrefix("data:image/") else {
-                image = nil
-                return
-            }
-            image = avatarImageData(uri).flatMap { UIImage(data: $0) }
+            image = await AvatarLoader.image(for: store.profile.avatarURL)
         }
     }
 
