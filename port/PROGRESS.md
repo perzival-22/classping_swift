@@ -31,8 +31,20 @@ This section supersedes the "08:40" handoff below, kept as history.
   counts (step 2), the card ending on "Synced", and anything going the other
   way: a phone change reaching the web (steps 5 and 6), a web change showing
   on return (7), offline (8). D-95's owed 13b and 13b+ steps still open.
-- **Next for Kelvin:** section 5, steps 5 to 9. Don't merge yet.
-- **Next for Claude:** record those results; then unchanged from 08:40.
+- **Phone, 08:51 (Kelvin):** the review showed no differences between the
+  phone and the web ("there was nothing to merge or replace"), so he skipped
+  the backups before Sync now. Steps 5 to 8 all pass: a phone-only item
+  reached the web, a task edit synced in seconds, a web change showed on
+  return, and an offline change went through by itself. Claude asked for a
+  web export now anyway, since phone edits now write to his real account.
+- **14cd is ready to merge** (`main` `5daaae6` is an ancestor, so it
+  fast-forwards and brings 14b with it). Still owed from D-95, on code
+  already in `main`: 13b steps 5 and 6, 13b+ steps 5 to 10. With sync on,
+  13b step 6's sample classes and 13b+ steps 6 and 9 (remove or change the
+  photo) now reach the web too.
+- **Next for Kelvin:** merge 14cd; back up; the owed steps when convenient.
+- **Next for Claude:** 14e (the signed-in server calls) on its own branch,
+  from `main` once 14cd is merged.
 
 ## Current handoff (2026-10-22, 08:40)
 
