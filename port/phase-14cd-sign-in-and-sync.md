@@ -132,7 +132,7 @@ Pushed to `ios/phase-14cd-sign-in-and-sync` by Claude; nothing merged into
 
 ## 6. Done when
 
-- [ ] Signed in with Google on the phone.
+- [x] Signed in with Google on the phone (Kelvin, 2026-10-22 08:43).
 - [ ] The review's counts make sense, and the first sync ends on "Synced".
 - [ ] A change on either side shows up on the other (steps 6 and 7).
 - [ ] Offline changes go through once back online (step 8).

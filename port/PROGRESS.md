@@ -23,10 +23,16 @@ This section supersedes the "08:40" handoff below, kept as history.
   `Account.configure()` pins the redirect and callback scheme to
   `space.classping.ios`. Run 39779640677 green: logic **633/633**, store
   **154/154** on Swift 6.4.1, iOS build on Xcode 26.6. Not tried on a phone.
-- **Next for Kelvin:** pull the branch, `xtool dev`, and redo the note's
-  section 5 from step 1. If the message still names an `XTL-` URL, the old
-  build is still installed.
-- **Next for Claude:** unchanged from 08:40.
+- **Phone, 08:43 (Kelvin, after pulling the fix):** "Worked, all classes
+  from supabase are in the app, my profile, theme. and the redirect worked."
+  So step 1 (Google sign-in comes back to the app) passed, and the pull from
+  the web reached the phone (classes, profile, theme). **Not reported yet:**
+  whether the backups (step 3) were made before Sync now, the review's
+  counts (step 2), the card ending on "Synced", and anything going the other
+  way: a phone change reaching the web (steps 5 and 6), a web change showing
+  on return (7), offline (8). D-95's owed 13b and 13b+ steps still open.
+- **Next for Kelvin:** section 5, steps 5 to 9. Don't merge yet.
+- **Next for Claude:** record those results; then unchanged from 08:40.
 
 ## Current handoff (2026-10-22, 08:40)
 
