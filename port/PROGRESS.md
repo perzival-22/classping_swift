@@ -8,6 +8,49 @@ generated_by: skills-for-architects
 
 *Update at the end of every session. Start every session by reading IOS_APP.md, this file and the current phase file, then listing `~/ClassPing/Sources/ClassPing/`.*
 
+## Current handoff (2026-10-22, 01:55)
+
+This section supersedes the "01:25" handoff below, kept as history.
+**This file in the Swift repo (`port/PROGRESS.md`) is now the one to update
+(D-98).** The laptop's `docs/ios/PROGRESS.md` stops at 01:25.
+
+- **New flow (D-98):** Claude pushes each phase to its own `ios/<phase>`
+  branch of `perzival-22/classping_swift`; GitHub Actions
+  (`.github/workflows/checks.yml`) runs `scripts/test-logic.sh` and
+  `scripts/test-store.sh` on Linux and an unsigned iOS build on a Mac. Kelvin
+  pulls, tries it on the phone, and merges with `--ff-only`. The cloud session
+  has no Swift and can't reach download.swift.org: read the CI result
+  (`gh run list --branch <branch>`, `gh run view <id> --log-failed`) instead
+  of claiming a check ran. The first run of the workflow is on the 14b branch;
+  if `ios-build` fails only because GitHub's Xcode is older than his Swift
+  6.4, pin a newer runner image or Xcode rather than changing app code.
+- **14b written, verified and pushed** (`ios/phase-14b-row-mapping`, two
+  commits on `5daaae6`: port docs and CI, then the phase). Change note:
+  [phase-14b-row-mapping.md](phase-14b-row-mapping.md). New
+  `Models+Rows.swift` and `Logic/ServerValues.swift`; `scripts/test-store.sh`
+  copies `Models+Rows`. Differences from the web: D-99.
+- **14b verification (laptop, before the push):** reference `BUILD_OK`, no
+  warnings; logic **623/623** in the default zone, New York, Kolkata, London
+  and Auckland; reference store **132/132**; his scripts on a throwaway copy
+  of his tree with the files laid over **623/623** and **144/144**, Sources
+  equal to the reference. "web:" values from map.ts itself in node 24
+  (laptop `docs/ios/.scratch/p14b/gen.ts` over a copy of the lib modules made
+  by `copylib.py`).
+- **Not merged, nothing on the phone to check** (no screen changed).
+- **Account (D-97):** first sync on Kelvin's own Google account, D-90's
+  guards first.
+- **Next: 14cd.** Needs from Kelvin: the full Supabase anon key (what he
+  pasted stops after the JWT header) and `space.classping.ios://callback` in
+  Clerk Dashboard > Native applications > "Allowlist for mobile SSO redirect"
+  (the bundle ID is `space.classping.ios`, from `xtool.yml`). Before writing
+  it: clone the web repo read-only for `lib/` (`perzival-22/ClassPing`), run
+  `port/tools/vendor-clerk.sh` (needs a shell that can reach GitHub; it
+  doesn't need Swift), and add a Package.swift change; the iOS build of
+  ClerkKit itself was only proven under xtool on the laptop (D-96), so the
+  first 14cd push shows whether GitHub's Xcode builds it too.
+- **Phone steps owed** (the batch after 14cd): 13b steps 5 and 6; 13b+ steps
+  5 to 10.
+
 ## Current handoff (2026-10-22, 01:25)
 
 This section supersedes the "00:45" handoff below, kept as history. 14b is
@@ -854,6 +897,7 @@ Kelvin's screenshot of the note editor: with the keyboard up, the tab bar rode u
 | 13b | yes (`ba8b0a9`), identical to the reference | BUILD_OK (2026-10-21) | not yet reported (steps 5 and 6 matter most) |
 | 13b+ | yes (`5daaae6`, with 14a), same as the guide (blank lines aside) | BUILD_OK (2026-10-22) | not yet (batched after 14cd, D-95) |
 | 14a | yes (`5daaae6`, with 13b+), same as the guide (blank lines aside); the last phase Kelvin typed (D-93) | BUILD_OK (2026-10-22) | nothing to see on the phone |
+| 14b | pushed by Claude to `ios/phase-14b-row-mapping` (D-98); not merged | BUILD_OK (laptop, 2026-10-22) | nothing to see on the phone |
 
 ## Web fixes for after the app
 
