@@ -8,6 +8,34 @@ generated_by: skills-for-architects
 
 *Update at the end of every session. Start every session by reading IOS_APP.md, this file and the current phase file, then listing `~/ClassPing/Sources/ClassPing/`.*
 
+## Current handoff (2026-10-22, 08:40)
+
+This section supersedes the "02:40" handoff below, kept as history.
+
+- **14b: not merged yet** (`main` is still `5daaae6`). Still ready.
+- **14cd step 2 pushed** (`fcd664f` on `ios/phase-14cd-sign-in-and-sync`):
+  Google sign-in (`Sync/Account.swift`), the transport
+  (`Sync/SupabaseTransport.swift`), the engine (`Sync/SyncEngine.swift`),
+  the merge and push (`Store+Sync.swift`, `Logic/SyncPlan.swift`), the Account
+  card and the first-sync review on the Profile tab. Change note:
+  [phase-14cd-sign-in-and-sync.md](phase-14cd-sign-in-and-sync.md). How it
+  syncs: D-101 (first sync waits for the review and his tap; Realtime left
+  out, pull on return instead).
+- **Checks:** GitHub run 39775758716 green: logic **633/633**, store
+  **154/154** on Swift 6.4.1, iOS build on Xcode 26.6. His xtool built it on
+  the laptop (throwaway clone, 95 s). **Nothing has run on a phone.**
+- **From Kelvin:** the full anon key arrived 07:55 (role `anon`, in
+  `Sync/SyncConfig.swift` with the other two public values). The Claude app
+  now reads `perzival-22/ClassPing` (clone at `/home/claude/classping` in a
+  cloud session; GitHub `main` is `818e2fd`, 2026-10-19, which may trail his
+  laptop's uncommitted web work). **Still his:** the Clerk Dashboard step
+  (Native API on, `space.classping.ios://callback` allowlisted).
+- **Next for Kelvin:** the note's section 5, steps 1 to 9, on his own Google
+  account, backups first. Ask for the review's counts (step 2) and any words
+  under the button or in the sync row.
+- **Next for Claude:** fix whatever the phone shows; then 14e (the signed-in
+  server calls) on its own branch from 14cd; Realtime later if wanted.
+
 ## Current handoff (2026-10-22, 02:40)
 
 This section supersedes the "01:55" handoff below, kept as history. Read it
@@ -936,6 +964,7 @@ Kelvin's screenshot of the note editor: with the keyboard up, the tab bar rode u
 | 13b+ | yes (`5daaae6`, with 14a), same as the guide (blank lines aside) | BUILD_OK (2026-10-22) | not yet (batched after 14cd, D-95) |
 | 14a | yes (`5daaae6`, with 13b+), same as the guide (blank lines aside); the last phase Kelvin typed (D-93) | BUILD_OK (2026-10-22) | nothing to see on the phone |
 | 14b | pushed by Claude to `ios/phase-14b-row-mapping` (D-98); not merged | BUILD_OK (laptop, 2026-10-22) | nothing to see on the phone |
+| 14cd | pushed by Claude to `ios/phase-14cd-sign-in-and-sync` (`fcd664f`); not merged | CI green, xtool OK (2026-10-22) | not yet (section 5 of its note) |
 
 ## Web fixes for after the app
 
