@@ -232,8 +232,8 @@ Every non-test file in `lib/`, once. "Test" is the web test file whose cases get
 | `lib/recovery.ts` | `Logic/Recovery.swift` (30-day window) | none | 11 |
 | `lib/calendar.ts` | `Logic/CalendarExport.swift` (ICS text, shared with `ShareLink`) | `calendar.test.ts` | 11 |
 | `lib/ics-import.ts` | `Logic/ICSImport.swift` (not `planImport`, D-80) | `ics-import.test.ts` | 13a |
-| `lib/ics-reconcile.ts` | `Logic/ICSReconcile.swift` | `ics-reconcile.test.ts` | 14 (with the feed, D-79) |
-| `lib/feeds.ts` | `Logic/Feeds.swift` | `feeds.test.ts` | 14 (D-79) |
+| `lib/ics-reconcile.ts` | `Logic/FeedReconcile.swift` (generic over `FeedLocalRow`, D-104) | `ics-reconcile.test.ts` → `FeedReconcileTests.swift`, fingerprints in `WebValues14e.swift` | 14e |
+| `lib/feeds.ts` | `Logic/ServerValues.swift` (`MAX_FEEDS`, `feedLabelFromURL`, 14b), `normalizeFeeds` in `Models+Rows.swift` (14b), the rest in `Store+Feeds.swift` | `feeds.test.ts` → `FeedStoreTests.swift` | 14b, 14e |
 | `lib/csv-import.ts` | `Logic/CSVImport.swift` | `csv-import.test.ts` | 13a |
 | `lib/paste-schedule.ts` | `Logic/PasteSchedule.swift` | `paste-schedule.test.ts` | 13b |
 | `lib/merge.ts` | `Logic/Merge.swift` (three-way merge) | `merge.test.ts` | 14a (D-89) |
@@ -256,7 +256,7 @@ Every non-test file in `lib/`, once. "Test" is the web test file whose cases get
 | `lib/push.ts` | Same, local notifications (no APNs on a free account) |
 | `public/sw.js`, its `notificationclick` | `didReceive` in `ClassPingApp.swift`, `notificationRoute` in `Logic/PostClass.swift` and `go` in `RootView.swift` (7c): a post-class nudge opens the prompt, a task's reminder its detail, a class alarm Today (D-33) |
 | `lib/ambient.ts` | `Logic/Ambient.swift` (the voices, `synthesize`, `encodeWav`, tested against the web's samples) and `Audio/AmbientPlayer.swift` (`AVAudioPlayer`, the lock screen), 10b (D-64) |
-| `lib/avatar.ts` | `Logic/Avatar.swift` (limits, `isPersistableAvatar`, the messages, 11a) and `avatarURI(from:)` in `ProfileCard.swift` (`PhotosPicker` + the 256 px JPEG crop, kept as a `data:` address, D-65); the `/api/avatar` upload waits for Phase 14 |
+| `lib/avatar.ts` | `Logic/Avatar.swift` (limits, `isPersistableAvatar`, the messages, 11a) and `avatarURI(from:)` in `ProfileCard.swift` (`PhotosPicker` + the 256 px JPEG crop, kept as a `data:` address, D-65); the `/api/avatar` upload is `WebAPI.uploadAvatar` in `ProfileCard.use`, with `versionedAvatarURL`, and https photos draw through `AvatarLoader` (14e, D-105) |
 | `lib/schedule-file.ts` | `.fileImporter` / `PhotosPicker` + PDFKit page renders for the schedule upload |
 | `lib/pdf.ts` | Not needed on the phone: the PDF grade report comes from `/api/export/grades` (D-6) |
 | `lib/themeColor.ts`, `lib/themeHint.ts` | `.preferredColorScheme` and `.tint` at the root |
@@ -319,12 +319,12 @@ Test-only files with no source twin (security, API and tooling tests) are Skip t
 | `app/(site)/layout.tsx`, `about`, `download`, `feedback`, `getting-started` (page + `page.module.css`), `privacy`, `terms`, `welcome` | Skip | Marketing. Settings links out to `/privacy` and `/terms` in Safari |
 | `app/api/parse/task/route.ts` | Connect | `ParseTaskAPI` (quick add) |
 | `app/api/import/schedule/route.ts` | Connect | `ScheduleImportAPI` |
-| `app/api/import/ics/route.ts` | Connect | `FeedFetchAPI` (D-7) |
+| `app/api/import/ics/route.ts` | Connect | `WebAPI.readFeed`, answer read by `importResult(fromServer:)` (D-7, D-103), 14e |
 | `app/api/ai/status/route.ts` | Connect | `AIStatusAPI` |
-| `app/api/avatar/route.ts` | Connect | `AvatarAPI` |
-| `app/api/account/route.ts` | Connect | `AccountAPI` (delete account) |
-| `app/api/feedback/route.ts` | Connect | `FeedbackAPI` (review card) |
-| `app/api/email/prefs/route.ts` | Connect | `EmailPrefsAPI` (Settings) |
+| `app/api/avatar/route.ts` | Connect | `WebAPI.uploadAvatar` (D-105), 14e |
+| `app/api/account/route.ts` | Connect | `WebAPI.deleteAccount`, `deleteOutcome` (D-106), 14e |
+| `app/api/feedback/route.ts` | Connect | `WebAPI.sendReview` (review card, signed in, D-103), 14e |
+| `app/api/email/prefs/route.ts` | Connect | `WebAPI.emailPrefs` / `setEmailPrefs`, `EmailPrefs` (D-107), 14e |
 | `app/api/export/grades/route.ts` | Connect | PDF grade report (D-6) |
 | `app/api/export/route.ts` | Skip | Replaced by the Ported `CalendarExport` |
 | `app/api/notes/tidy/route.ts` | Skip | No longer called by the client |
@@ -364,9 +364,9 @@ Test-only files with no source twin (security, API and tooling tests) are Skip t
 | `GradeScaleEditor.tsx` | Rebuild | `Screens/Grades/GradeScaleEditor.swift` (9b), its draft rows in `Logic/ScaleDraft.swift` (`ScaleDraftTests.swift`); pushed from the Grades scale card (D-51) |
 | `QuietHours.tsx` | Rebuild | inside `Screens/Profile/RemindersSection.swift` with the after-class nudge switch, 7a |
 | `RestoreSheet.tsx` | Rebuild | `Screens/Settings/RestoreSheet.swift` |
-| `ReviewCard.tsx` | Rebuild | `Screens/Settings/ReviewCard.swift` |
-| `ImportCalendar.tsx` | Rebuild | `Screens/Import/ImportView.swift` (`ImportPanel`, `ImportCard`, `ImportSheet`), 13a; Paste a timetable and `onImported` in 13b; the feed half in 14 (D-79) |
-| `FeedRefresh.tsx` | Rebuild | `Screens/Import/FeedRefreshView.swift`, 14 (D-79) |
+| `ReviewCard.tsx` | Rebuild | `Screens/Profile/ReviewCard.swift`, 14e |
+| `ImportCalendar.tsx` | Rebuild | `Screens/Import/ImportView.swift` (`ImportPanel`, `ImportCard`, `ImportSheet`), 13a; Paste a timetable and `onImported` in 13b; the feed half in 14e (D-79, D-104) |
+| `FeedRefresh.tsx` | Rebuild | `Screens/Import/FeedRefreshView.swift`, 14e |
 | `PasteSchedule.tsx` | Rebuild | `Screens/Import/PasteScheduleView.swift`, 13b, a sheet of its own (D-84); the `initialRows` review of a screenshot or PDF in 15 |
 | `ScheduleUpload.tsx` | Rebuild | `Screens/Import/ScheduleUploadView.swift` |
 | `ClassPet.tsx` | Rebuild | `Screens/Progress/ClassPetView.swift` (needs the pet art as resources) |

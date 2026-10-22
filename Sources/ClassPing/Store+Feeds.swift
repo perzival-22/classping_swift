@@ -185,26 +185,30 @@ extension Store {
         // Removals, all with one stamp. `Set` makes "is this one going?" quick.
         let goneCourses = Set(courses.map(\.id).filter { write.removeClassIDs.contains(webID($0)) })
         let goneTasks = Set(assignments.map(\.id).filter { write.removeTaskIDs.contains(webID($0)) })
+        /// True when an item is filed under a class that's going. A function
+        /// inside a function, so the loops below read simply.
+        func underGoneClass(_ courseID: UUID?) -> Bool {
+            guard let courseID else { return false }
+            return goneCourses.contains(courseID)
+        }
         for i in courses.indices where goneCourses.contains(courses[i].id) && courses[i].deletedAt == nil {
             courses[i].deletedAt = now
         }
         // An assignment goes if you ticked it, or if its class went.
         for i in assignments.indices where assignments[i].deletedAt == nil
-            && (goneTasks.contains(assignments[i].id) || assignments[i].courseID.map(goneCourses.contains) == true) {
+            && (goneTasks.contains(assignments[i].id) || underGoneClass(assignments[i].courseID)) {
             assignments[i].deletedAt = now
         }
-        for i in grades.indices where grades[i].deletedAt == nil
-            && grades[i].courseID.map(goneCourses.contains) == true {
+        for i in grades.indices where grades[i].deletedAt == nil && underGoneClass(grades[i].courseID) {
             grades[i].deletedAt = now
         }
-        for i in notes.indices where notes[i].deletedAt == nil
-            && notes[i].courseID.map(goneCourses.contains) == true {
+        for i in notes.indices where notes[i].deletedAt == nil && underGoneClass(notes[i].courseID) {
             notes[i].deletedAt = now
         }
         // A day plan for an assignment that went goes with it.
         if !goneCourses.isEmpty || !goneTasks.isEmpty {
             let planned = Set(assignments.filter { task in
-                goneTasks.contains(task.id) || task.courseID.map(goneCourses.contains) == true
+                goneTasks.contains(task.id) || underGoneClass(task.courseID)
             }.map(\.id))
             taskPlans.removeAll { planned.contains($0.assignmentID) }
         }

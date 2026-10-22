@@ -8,6 +8,36 @@ generated_by: skills-for-architects
 
 *Update at the end of every session. Start every session by reading IOS_APP.md, this file and the current phase file, then listing `~/ClassPing/Sources/ClassPing/`.*
 
+## Current handoff (2026-10-22, 09:15)
+
+This section supersedes the "08:38" handoff below, kept as history.
+
+- **14b and 14cd merged** by Kelvin at 08:53: `main` is `0ae74d2`. 14cd's
+  phone steps 1 to 8 passed (08:43, 08:51): Google sign-in, his classes,
+  profile and theme pulled from Supabase, a phone-only item reached the web,
+  a task edit synced in seconds, a web change showed on return, offline
+  changes went through. The first-sync review showed no differences, so he
+  skipped the backups before Sync now; Claude asked for a web export anyway.
+  Still owed (D-95): 13b steps 5 and 6, 13b+ steps 5 to 10; with sync on,
+  13b step 6's sample classes and 13b+ steps 6 and 9 (the photo) reach the
+  web too.
+- **14e pushed** to `ios/phase-14e-server-calls` (from `main`): live calendar
+  feeds with the review-before-apply refresh, photo upload and https photos,
+  the Email card, Rate ClassPing, delete account. No web change: the phone
+  sends Clerk's token as Bearer (D-103). Decisions D-103 to D-107. Change
+  note: [phase-14e-server-calls.md](phase-14e-server-calls.md).
+- **Checks:** VERIFICATION_PLACEHOLDER **Nothing has run on a phone**, and
+  the Bearer path to the web's routes is untested until it does.
+- **Web fixes 12 and 13** added below: calendar times ending in Z read as
+  local times (check against his real Brightspace feed), and the unversioned
+  avatar address.
+- **Next for Kelvin:** the note's section 5, steps 1 to 9. Step 3 is his real
+  Brightspace feed (screenshot the preview before applying). Step 9 stops at
+  the confirmation: never Delete forever on his real account.
+- **Next for Claude:** fix whatever the phone shows; then 15 (server AI:
+  quick-add parsing, schedule photo or PDF import, AI status) on its own
+  branch; 16 (polish) after.
+
 ## Current handoff (2026-10-22, 08:38)
 
 This section supersedes the "08:40" handoff below, kept as history.
@@ -1051,6 +1081,19 @@ phone keeps the web's behavior unless a decision says otherwise. Found so far:
     `onDone` doesn't set `done`, so the card flips back to its buttons with
     no "Added" line (a file import gets one). The phone matches the web for
     now (D-84); a line would need words for "classes" rather than "items".
+12. **Calendar times in UTC are read as local times.** `parseIcsDate` in
+    `lib/ics-import.ts` takes a `DTSTART` like `20261016T035900Z` digit for
+    digit and ignores the Z (and any TZID), so a deadline a school publishes
+    in UTC (Canvas does) lands hours off, often on the next day: 11:59 PM
+    in Maine arrives as 3:59 AM the day after. The phone copies the web
+    (13a, and 14e reads the server's answer). Check against a real feed
+    first; the fix converts Z times to the student's zone, which the server
+    route doesn't know today (the client would pass it, or convert itself).
+13. **A new photo keeps the old address.** `/api/avatar` overwrites
+    `avatars/<user>.webp`, so `uploadAvatar` returns the same URL, the
+    profile doesn't change, sync sends nothing and other devices keep the
+    old picture (browsers cache it too). The phone adds `?v=<upload ms>`
+    (D-105); the web's `uploadAvatar` could do the same.
 
 Older open questions below that are web changes (1, 3, 5, 6, 10, 13, 18 and
 20) still need Kelvin's call on what the fix should be, but not on when: when
