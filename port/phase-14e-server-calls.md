@@ -7,7 +7,12 @@ date: 2026-10-22
 A change note (D-93). Branch `ios/phase-14e-server-calls`, from `main` at
 `0ae74d2` (14b and 14cd merged). **Not merged.**
 
-**Verification (2026-10-22):** VERIFICATION_PLACEHOLDER
+**Verification (2026-10-22):** GitHub checks on `b06486a` (run 39785351631, and run 39784743368 on the
+first push): logic **682/682** (+49: `FeedReconcileTests`, `WebCallsTests`,
+against `WebValues14e.swift`), store **166/166** (+12, `FeedStoreTests`) on
+Swift 6.4.1; iOS build green on Xcode 26.6. No xtool build (the laptop wasn't
+used). Nothing has run on a phone, and the phone's Bearer token has never
+reached the web's routes yet (D-103).
 
 ## 1. Goal
 
@@ -91,8 +96,8 @@ Changed: `Screens/Import/ImportView.swift`, `Screens/Profile/AccountCard.swift`,
 cd ~/ClassPing
 git fetch origin
 git switch ios/phase-14e-server-calls
-scripts/test-logic.sh     # expect LOGIC_TOTAL passing
-scripts/test-store.sh     # expect STORE_TOTAL passing
+scripts/test-logic.sh     # expect 682 passing
+scripts/test-store.sh     # expect 166 passing
 xtool dev
 ```
 

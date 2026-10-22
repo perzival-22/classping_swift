@@ -26,7 +26,9 @@ This section supersedes the "08:38" handoff below, kept as history.
   the Email card, Rate ClassPing, delete account. No web change: the phone
   sends Clerk's token as Bearer (D-103). Decisions D-103 to D-107. Change
   note: [phase-14e-server-calls.md](phase-14e-server-calls.md).
-- **Checks:** VERIFICATION_PLACEHOLDER **Nothing has run on a phone**, and
+- **Checks:** run 39785351631 on `b06486a` green: logic **682/682** (+49),
+  store **166/166** (+12) on Swift 6.4.1, iOS build on Xcode 26.6. No xtool
+  build. **Nothing has run on a phone**, and
   the Bearer path to the web's routes is untested until it does.
 - **Web fixes 12 and 13** added below: calendar times ending in Z read as
   local times (check against his real Brightspace feed), and the unversioned
