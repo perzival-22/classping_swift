@@ -21,9 +21,12 @@ This section supersedes the "01:25" handoff below, kept as history.
   pulls, tries it on the phone, and merges with `--ff-only`. The cloud session
   has no Swift and can't reach download.swift.org: read the CI result
   (`gh run list --branch <branch>`, `gh run view <id> --log-failed`) instead
-  of claiming a check ran. The first run of the workflow is on the 14b branch;
-  if `ios-build` fails only because GitHub's Xcode is older than his Swift
-  6.4, pin a newer runner image or Xcode rather than changing app code.
+  of claiming a check ran; job logs can't be downloaded from the cloud, so
+  the workflow echoes compiler errors and test totals as annotations, which
+  `gh run view <id>` shows. First runs: Xcode 16.4 (`macos-15`) refused
+  `ClassPingApp.swift:131` (the notification delegate's sendability), which
+  the laptop's newer SDK accepts, so `ios-build` runs on `macos-26` with its
+  newest Xcode (26.6 on 2026-10-22), and passes.
 - **14b written, verified and pushed** (`ios/phase-14b-row-mapping`, two
   commits on `5daaae6`: port docs and CI, then the phase). Change note:
   [phase-14b-row-mapping.md](phase-14b-row-mapping.md). New
@@ -39,7 +42,9 @@ This section supersedes the "01:25" handoff below, kept as history.
 - **Not merged, nothing on the phone to check** (no screen changed).
 - **Account (D-97):** first sync on Kelvin's own Google account, D-90's
   guards first.
-- **Next: 14cd.** Needs from Kelvin: the full Supabase anon key (what he
+- **Next: 14cd**, planned in [phase-14cd-plan.md](phase-14cd-plan.md) from
+  the web store's own sync code (hydrate, flush, Realtime, deletes) with the
+  guards built into the app. Needs from Kelvin: the full Supabase anon key (what he
   pasted stops after the JWT header) and `space.classping.ios://callback` in
   Clerk Dashboard > Native applications > "Allowlist for mobile SSO redirect"
   (the bundle ID is `space.classping.ios`, from `xtool.yml`). Before writing

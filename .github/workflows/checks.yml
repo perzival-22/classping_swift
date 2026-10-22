@@ -64,6 +64,6 @@ jobs:
             -skipMacroValidation -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || status=$?
           tail -80 build.log
-          grep -E "error:|\*\* BUILD|xcodebuild: error" build.log | sort -u | head -40 \
+          grep -E "error:|\*\* BUILD FAILED|xcodebuild: error" build.log | sort -u | head -40 \
             | while read -r line; do echo "::error::$line"; done
           exit $status
