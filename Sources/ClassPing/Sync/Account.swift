@@ -25,11 +25,29 @@ final class Account {
     /// True while a sign-in or sign-out is running, to stop a second tap.
     var working = false
 
+    /// The scheme Google's sign-in comes back on: `xtool.yml`'s bundle ID,
+    /// written out rather than read from the app (D-102).
+    static let callbackScheme = "space.classping.ios"
+
     /// Sets Clerk up. Call once, before anything asks who is signed in.
     /// `@discardableResult` on Clerk's side means the instance it gives back
     /// can be ignored; `Clerk.shared` finds it again.
     static func configure() {
-        Clerk.configure(publishableKey: SyncConfig.clerkPublishableKey)
+        // The redirect is pinned (D-102). ClerkKit's default builds it from
+        // the bundle ID the phone reports, and xtool's free signing installs
+        // the app as `XTL-<team>.space.classping.ios`, so the default became
+        // `XTL-V6P7S9UKM7.space.classping.ios://callback`, which Clerk's
+        // allowlist refused. The browser sheet catches whatever scheme it's
+        // given, so a fixed one works under any signing, and it matches the
+        // `space.classping.ios://callback` already in the Clerk Dashboard.
+        let redirect = Clerk.Options.RedirectConfig(
+            redirectUrl: "\(callbackScheme)://callback",
+            callbackUrlScheme: callbackScheme
+        )
+        Clerk.configure(
+            publishableKey: SyncConfig.clerkPublishableKey,
+            options: Clerk.Options(redirectConfig: redirect)
+        )
     }
 
     /// The signed-in user's Clerk id ("user_..."), which is the `user_id` on

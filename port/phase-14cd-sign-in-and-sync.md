@@ -40,7 +40,9 @@ later; coming back to the app brings in what changed on the web.
   `clerk.auth.signInWithOAuth(provider: .google)` in a secure browser sheet,
   `getToken` (with `skipCache` after a 401), sign out. No URL type in
   Info.plist: the browser sheet catches `space.classping.ios://callback` by
-  itself.
+  itself. **The redirect is pinned (D-102):** ClerkKit's default reads the
+  installed bundle ID, which xtool turns into `XTL-<team>.space.classping.ios`,
+  so `Account.configure()` passes the callback explicitly.
 - `lib/store.tsx`'s hydrate and flush to `Store+Sync.swift`, and their
   bookkeeping to `Logic/SyncPlan.swift`: the snapshot (one file per account,
   `Documents/sync-<user>.json`), fingerprints (14a's `hashRow` of the row's
@@ -135,9 +137,15 @@ Pushed to `ios/phase-14cd-sign-in-and-sync` by Claude; nothing merged into
 
 ## 7. If it breaks
 
+- "Couldn't sign in: The current redirect url ... does not match an
+  authorized redirect URI": the redirect Clerk got isn't in the dashboard's
+  allowlist. The first build sent `XTL-V6P7S9UKM7.space.classping.ios://callback`
+  (xtool's bundle ID, 2026-10-22 08:28); D-102 pins it to
+  `space.classping.ios://callback`, so pull and reinstall. If the message
+  still names an `XTL-` URL, the phone is running the old build.
 - Google opens but never comes back to the app, or lands on classping.space:
-  the callback isn't allowlisted, or xtool signed the app under a different
-  bundle ID. Tell me the bundle ID the app shows (or the URL you land on).
+  the callback isn't allowlisted. Check the dashboard entry reads exactly
+  `space.classping.ios://callback`, and send me the URL you land on.
 - "Your session expired. Sign in again to keep syncing." straight after
   signing in: Supabase isn't accepting Clerk's token from the phone. Send the
   exact words; the fix is on the Supabase or Clerk side, not in your data.
