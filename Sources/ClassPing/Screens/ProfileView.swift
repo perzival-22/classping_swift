@@ -21,7 +21,51 @@
 import SwiftUI
 import UIKit
 
+private enum ProfileCategory: String, Hashable, CaseIterable {
+    case grades, profile, themes, reminders, imports, semester, data, rate
+
+    var title: String {
+        switch self {
+        case .grades: "Grading scale & Grades"
+        case .profile: "Profile"
+        case .themes: "Themes"
+        case .reminders: "Reminders"
+        case .imports: "Imports"
+        case .semester: "Semester"
+        case .data: "Your data"
+        case .rate: "Rate ClassPing"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .grades: "Choose your scale and view grades and GPA"
+        case .profile: "Your profile, account, sync and account actions"
+        case .themes: "Choose the appearance and app color"
+        case .reminders: "Class alarms, quiet hours and email reminders"
+        case .imports: "Import your school schedule"
+        case .semester: "Dates, progress and start a new term"
+        case .data: "Backups, deleted items and data controls"
+        case .rate: "Share feedback about ClassPing"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .grades: "graduationcap"
+        case .profile: "person.crop.circle"
+        case .themes: "paintpalette"
+        case .reminders: "bell.badge"
+        case .imports: "square.and.arrow.down"
+        case .semester: "calendar"
+        case .data: "externaldrive"
+        case .rate: "star"
+        }
+    }
+}
+
 struct ProfileView: View {
+    @Binding var tabBarCompact: Bool
     @Environment(Store.self) private var store
     // NEW in Phase 14e: the email and review cards need a sign-in.
     @Environment(SyncEngine.self) private var sync
@@ -31,7 +75,7 @@ struct ProfileView: View {
         @Bindable var store = store
 
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 8) {
                 // Surface a failed local save beside the controls that caused it.
                 if store.lastSaveFailed {
                     Text("Couldn't save on this device. Your last change may be lost if the app closes.")
@@ -39,103 +83,38 @@ struct ProfileView: View {
                         .foregroundStyle(Theme.danger)
                         .accessibilityAddTraits(.updatesFrequently)
                 }
-                // MARK: You
-                // CHANGED in Phase 11a: your photo and name, editable.
-                ProfileCard()
-
-                // Phase 9a: Grades now opens on Profile's navigation stack.
-                NavigationLink {
-                    GradesView()
-                } label: {
-                    HStack {
-                        Label("Grades & GPA", systemImage: "graduationcap")
-                        Spacer()
-                        Image(systemName: "chevron.right").accessibilityHidden(true)
+                NavigationLink(value: ProfileCategory.profile) {
+                    profileBanner
+                }
+                .buttonStyle(.plain)
+                // Grading and GPA lead the settings, followed by the other
+                // compact category rows.
+                ForEach(ProfileCategory.allCases, id: \.self) { category in
+                    NavigationLink(value: category) {
+                        categoryRow(category)
                     }
-                    .foregroundStyle(Theme.ink)
-                    .padding(16)
-                    .frame(minHeight: 44)
-                    .cardStyle()
+                    .buttonStyle(.plain)
                 }
-
-                // MARK: Appearance
-                VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("APPEARANCE")
-                    // CHANGED in Phase 13b+: round pills, each in its own color
-                    // (D-88). Light is cream and Dark is charcoal whatever the
-                    // phone is showing now; the chosen one has a ring and a check.
-                    PillPicker(label: "Theme", selection: $store.profile.theme, options: [
-                        .init(value: .light, title: "Light", colors: Theme.themePill(.light)),
-                        .init(value: .dark, title: "Dark", colors: Theme.themePill(.dark))
-                    ])
-                    // NEW in Phase 11a: the web's line under each choice.
-                    footnote(store.profile.theme == .dark
-                             ? "Warm charcoal, with the same soft surfaces and your app color."
-                             : "Switch to warm charcoal for late-night planning.")
-
-                    sectionLabel("APP COLOR")
-                        .padding(.top, 6)
-                    // CHANGED in Phase 13b+: Baby Pink stays pink and Ocean stays
-                    // blue, so you can see both while you're on either.
-                    PillPicker(label: "App color", selection: $store.profile.accent, options: [
-                        .init(value: .babypink, title: "Baby Pink", colors: Theme.accentPill(.babypink)),
-                        .init(value: .ocean, title: "Ocean", colors: Theme.accentPill(.ocean))
-                    ])
-                    footnote("Baby Pink or Ocean, for your highlights and primary actions.")
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
-
-                // MARK: Reminders
-                RemindersSection()
-
-                // MARK: Email
-                // NEW in Phase 14e: the web keeps these switches inside its
-                // Reminders card; they live on the server, so signed in only.
-                if sync.account.userID != nil {
-                    EmailPrefsCard()
-                }
-
-                // MARK: Calendar
-                // NEW in Phase 11b+c: the timetable as a .ics file. The web
-                // puts this inside its Reminders card; here it's its own card.
-                CalendarCard()
-
-                // MARK: Import from your school
-                // NEW in Phase 13a: a calendar or schedule file, as on the
-                // web's Settings, between the calendar and the grading scale.
-                ImportCard()
-
-                // MARK: Grading scale
-                // NEW in Phase 11a: moved here from the Grades screen (D-67).
-                GradingSection()
-
-                // MARK: Semester
-                // NEW in Phase 11a.
-                SemesterSection()
-
-                // MARK: Your data
-                // NEW in Phase 11b+c: back up, restore, Recently Deleted, clear.
-                DataSection()
-
-                // MARK: Rate ClassPing
-                // NEW in Phase 14e: just above the Account card, as on the web.
-                if sync.account.userID != nil {
-                    ReviewCard()
-                }
-
-                // MARK: Account
-                // CHANGED in Phase 14cd: the "Coming to this tab" card was the
-                // last placeholder; your account and sync take its place.
-                AccountCard()
             }
             .padding(16)
+            // Leave a small clear runway after the last card so it can settle
+            // above the tab bar and the optional undo strip.
+            // Allow the final account controls to scroll clear of the floating
+            // tab bar, including its raised center button.
+            .padding(.bottom, 120)
+        }
+        .onScrollPhaseChange { _, phase in
+            withAnimation(.easeInOut(duration: 1.0)) {
+                tabBarCompact = phase.isScrolling
+            }
         }
         // NEW in Phase 11a: a swipe down the page puts the keyboard away.
         .scrollDismissesKeyboard(.interactively)
         .background(Theme.canvas)
         .navigationTitle("Profile")
+        .navigationDestination(for: ProfileCategory.self) { category in
+            categoryPage(category)
+        }
         // Save whenever a profile field changes, so the choice survives a
         // relaunch. CHANGED in Phase 5a: this moved here from TodayView.
         .onChange(of: store.profile) { store.save() }
@@ -158,6 +137,154 @@ struct ProfileView: View {
             .font(.system(size: 12))
             .foregroundStyle(Theme.faint)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func categoryRow(_ category: ProfileCategory) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: category.symbol)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Theme.brand(store.profile.accent))
+                .frame(width: 38, height: 38)
+                .background(Theme.brandSoft(store.profile.accent),
+                            in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                Text(category.detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.hint)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(minHeight: 58)
+        .cardStyle()
+        .contentShape(Rectangle())
+    }
+
+    private var profileBanner: some View {
+        HStack(spacing: 14) {
+            AvatarBadge(name: store.profile.username, size: 58,
+                        accent: store.profile.accent, corner: 16)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(.white.opacity(0.85), lineWidth: 2)
+                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(store.profile.username.isEmpty ? "Your profile" : store.profile.username)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text("Profile, account and sync")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.88))
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.9))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+        .background(Theme.brandGradient(store.profile.accent),
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens profile and account settings")
+    }
+
+    @ViewBuilder
+    private func categoryPage(_ category: ProfileCategory) -> some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                switch category {
+                case .grades:
+                    NavigationLink {
+                        GradesView()
+                    } label: {
+                        HStack {
+                            Label("Grades & GPA", systemImage: "graduationcap")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .foregroundStyle(Theme.ink)
+                        .padding(16)
+                        .cardStyle()
+                    }
+                    GradingSection()
+                case .profile:
+                    ProfileCard()
+                    AccountCard()
+                case .themes:
+                    themeSection
+                case .reminders:
+                    RemindersSection()
+                    if sync.account.userID != nil { EmailPrefsCard() }
+                    CalendarCard()
+                case .imports:
+                    ImportCard()
+                case .semester:
+                    SemesterSection()
+                case .data:
+                    DataSection()
+                case .rate:
+                    if sync.account.userID != nil {
+                        ReviewCard()
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Sign in to share feedback about ClassPing.")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.muted)
+                            NavigationLink(value: ProfileCategory.profile) {
+                                HStack {
+                                    Text("Go to Profile and Account")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                }
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.brand(store.profile.accent))
+                                .padding(16)
+                                .cardStyle()
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .padding(.bottom, 120)
+        }
+        .background(Theme.canvas)
+        .navigationTitle(category.title)
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var themeSection: some View {
+        @Bindable var store = store
+        return VStack(alignment: .leading, spacing: 12) {
+            sectionLabel("APPEARANCE")
+            PillPicker(label: "Theme", selection: $store.profile.theme, options: [
+                .init(value: .light, title: "Light", colors: Theme.themePill(.light)),
+                .init(value: .dark, title: "Dark", colors: Theme.themePill(.dark))
+            ])
+            footnote(store.profile.theme == .dark
+                     ? "Warm charcoal, with the same soft surfaces and your app color."
+                     : "Switch to warm charcoal for late-night planning.")
+            sectionLabel("APP COLOR").padding(.top, 6)
+            PillPicker(label: "App color", selection: $store.profile.accent, options: [
+                .init(value: .babypink, title: "Baby Pink", colors: Theme.accentPill(.babypink)),
+                .init(value: .ocean, title: "Ocean", colors: Theme.accentPill(.ocean))
+            ])
+            footnote("Baby Pink or Ocean, for your highlights and primary actions.")
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
 }

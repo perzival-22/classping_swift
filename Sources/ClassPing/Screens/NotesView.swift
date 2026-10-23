@@ -24,7 +24,13 @@ struct NoteLink: Hashable {
     let id: UUID
 }
 
+private enum NotesLayout: Hashable {
+    case widgets
+    case list
+}
+
 struct NotesView: View {
+    @Binding var tabBarCompact: Bool
     @Environment(Store.self) private var store
 
     /// What's typed in the search field. `.searchable` below draws the field
@@ -37,6 +43,8 @@ struct NotesView: View {
 
     /// Whether the new-class form is open, for "Add your first class".
     @State private var addingCourse = false
+    /// Widget cards are the default; the list remains available on demand.
+    @State private var layout: NotesLayout = .widgets
 
     var body: some View {
         // Redrawn each minute, so the Now tag moves with the timetable.
@@ -57,6 +65,10 @@ struct NotesView: View {
                     }
                 }
                 .padding(16)
+                .padding(.bottom, 120)
+            }
+            .onScrollPhaseChange { _, phase in
+                tabBarCompact = phase.isScrolling
             }
         }
         .background(Theme.canvas)
@@ -114,6 +126,16 @@ struct NotesView: View {
             .padding(.horizontal, 4)
             .padding(.bottom, 6)
 
+        Picker("Notes layout", selection: $layout) {
+            Label("Widgets", systemImage: "square.grid.2x2")
+                .tag(NotesLayout.widgets)
+            Label("List", systemImage: "list.bullet")
+                .tag(NotesLayout.list)
+        }
+        .pickerStyle(.segmented)
+        .accessibilityLabel("Notes layout")
+        .padding(.bottom, 6)
+
         if courses.isEmpty && quick.isEmpty {
             Button {
                 addingCourse = true
@@ -128,20 +150,107 @@ struct NotesView: View {
             .buttonStyle(.plain)
         }
 
-        ForEach(courses) { course in
-            NavigationLink(value: CourseNotesLink(id: course.id)) {
-                courseRow(course, live: course.id == live)
+        if layout == .widgets {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(courses) { course in
+                    NavigationLink(value: CourseNotesLink(id: course.id)) {
+                        courseWidget(course, live: course.id == live)
+                    }
+                    .buttonStyle(.plain)
+                }
+                ForEach(quick) { note in
+                    NavigationLink(value: NoteLink(id: note.id)) {
+                        quickNoteWidget(note)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
+        } else {
+            ForEach(courses) { course in
+                NavigationLink(value: CourseNotesLink(id: course.id)) {
+                    courseRow(course, live: course.id == live)
+                }
+                .buttonStyle(.plain)
+            }
+            ForEach(quick) { note in
+                NavigationLink(value: NoteLink(id: note.id)) {
+                    noteRow(noteTitle(title: note.title, body: note.body),
+                            "Quick note · \(dayLabel(note.date))")
+                }
+                .buttonStyle(.plain)
+            }
         }
+    }
 
-        ForEach(quick) { note in
-            NavigationLink(value: NoteLink(id: note.id)) {
-                noteRow(noteTitle(title: note.title, body: note.body),
-                        "Quick note · \(dayLabel(note.date))")
+    private func courseWidget(_ course: Course, live: Bool) -> some View {
+        let count = store.noteCount(for: course.id)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                SubjectBook(color: course.color, short: course.short, compact: true)
+                Spacer(minLength: 0)
+                if live {
+                    Text("NOW")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Theme.good, in: Capsule())
+                }
             }
-            .buttonStyle(.plain)
+            Text(course.name)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(meetingSummary(course))
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.muted)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
+            HStack {
+                Text("\(count) note\(count == 1 ? "" : "s")")
+                Spacer()
+                Image(systemName: "chevron.right")
+            }
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(Theme.hint)
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .aspectRatio(1, contentMode: .fit)
+        .cardStyle()
+        .contentShape(Rectangle())
+    }
+
+    private func quickNoteWidget(_ note: Note) -> some View {
+        let preview = notePreview(note.body)
+        return VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "note.text")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(Theme.brand(store.profile.accent))
+            Text(noteTitle(title: note.title, body: note.body))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(preview.isEmpty ? "Quick note" : preview)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.muted)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
+            Text("Quick note · \(dayLabel(note.date))")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.hint)
+                .lineLimit(1)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .aspectRatio(1, contentMode: .fit)
+        .cardStyle()
+        .contentShape(Rectangle())
     }
 
     /// One class: its book, its name (Now while it's on), its timetable and

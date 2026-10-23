@@ -35,9 +35,9 @@ struct ClassCard: View {
     /// list gets a separate `open`, kept for as long as that card stays on
     /// screen. SwiftUI tells the cards apart by the `id` the ForEach in
     /// TodayView gives them, so folding Biology never folds Chemistry.
-    /// It starts open, like the web, which explains why: the room is the
-    /// reason the app exists, so you shouldn't have to tap to see it.
-    @State private var open = true
+    /// Starts folded so the day's classes fit side by side. Tap any tile to
+    /// open its full room, teacher and notes details.
+    @State private var open = false
 
     var body: some View {
         let course = slot.course
@@ -71,6 +71,7 @@ struct ClassCard: View {
         // The card surface. Clipped to the rounded shape so the color bar's
         // corners are rounded too, then the shadow goes on the clipped shape.
         .background(Theme.card)
+        .aspectRatio(open ? nil : 1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.large, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 6)
         // A class that's over fades back, the web's opacity .55.
@@ -85,58 +86,55 @@ struct ClassCard: View {
         // The room only when there is one; an empty room counts as none.
         let room = meeting.room.flatMap { $0.isEmpty ? nil : $0 }
 
-        return HStack(spacing: 12) {
-            SubjectBook(color: course.color, short: course.short)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(course.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                Text(room.map { "\(range) · \($0)" } ?? range)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.muted)
-                    .lineLimit(1)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                SubjectBook(color: course.color, short: course.short, compact: true)
+                Spacer(minLength: 0)
+                statusTag(isNow: isNow, isPast: isPast, meeting: meeting)
             }
 
-            Spacer(minLength: 4)
+            Text(course.name)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            // One of three tags: on now, over, or still to come (with the
-            // time its reminder points at).
-            if isNow {
-                Text("Now")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Theme.good, in: Capsule())
-            } else if isPast {
-                Text("Done")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.hint)
-            } else if nowMin >= 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 12))
-                    Text(fmtTime(meeting.start))
-                }
-                .font(.system(size: 12))
+            Text(room.map { "\(range) · \($0)" } ?? range)
+                .font(.system(size: 11))
                 .foregroundStyle(Theme.muted)
-            }
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Points right when folded and down when open.
-            // `.rotationEffect` turns a view; the animation in the button
-            // above makes it swing instead of jump.
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.hint)
-                .rotationEffect(.degrees(open ? 90 : 0))
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 12)
-        .padding(.vertical, 16)
+        .padding(12)
         // Makes the whole row tappable, gaps included.
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func statusTag(isNow: Bool, isPast: Bool, meeting: ClassMeeting) -> some View {
+        if isNow {
+            Text("Now")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Theme.good, in: Capsule())
+        } else if isPast {
+            Text("Done")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.hint)
+        } else if nowMin >= 0 {
+            Text(fmtTime(meeting.start))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.muted)
+                .lineLimit(1)
+        }
     }
 
     /// Days, time, room, teacher and the class's private note.

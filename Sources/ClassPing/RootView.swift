@@ -55,6 +55,8 @@ struct RootView: View {
     /// bar steps aside then, so nothing that sits on the keyboard (the note's
     /// formatting bar, the end of a search's results) is hidden behind it.
     @State private var keyboardUp = false
+    /// The Profile tab's bar becomes shorter while its settings list scrolls.
+    @State private var tabBarCompact = false
 
     var body: some View {
         // Read the accent once; reading it here means the whole screen redraws
@@ -65,17 +67,19 @@ struct RootView: View {
         // switching tabs, including the selected day and expanded week.
         TabView(selection: $tab) {
             // CHANGED in Phase 6b: Today gets the tab, for "View all".
-            NavigationStack { TodayView(tab: $tab) }
+            NavigationStack { TodayView(tabBarCompact: $tabBarCompact, tab: $tab) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.today)
-            NavigationStack { NotesView() }
+            NavigationStack { NotesView(tabBarCompact: $tabBarCompact) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.notes)
             // CHANGED in Phase 7c: `path:` lets a tap open a task's detail.
-            NavigationStack(path: $tasksPath) { AssignmentsView().navigationTitle("Tasks") }
+            NavigationStack(path: $tasksPath) {
+                AssignmentsView(tabBarCompact: $tabBarCompact).navigationTitle("Tasks")
+            }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.tasks)
-            NavigationStack { ProfileView() }
+            NavigationStack { ProfileView(tabBarCompact: $tabBarCompact) }
                 .toolbar(.hidden, for: .tabBar)
                 .tag(MainTab.profile)
         }
@@ -85,7 +89,10 @@ struct RootView: View {
             // CHANGED after Phase 8c (D-43): gone while the keyboard is up.
             if !keyboardUp {
                 MainTabBar(tab: $tab, addOpen: $addOpen, accent: accent,
+                           compact: tabBarCompact,
                            name: store.profile.username)
+                    // Keep the bar floating, with a little more room below it.
+                    .padding(.bottom, 8)
             }
         }
         // NEW after Phase 8c (D-43): iOS announces the keyboard coming and going.
@@ -188,6 +195,7 @@ private struct MainTabBar: View {
     @Binding var tab: MainTab
     @Binding var addOpen: Bool
     let accent: Profile.Accent
+    let compact: Bool
     /// Your username, for the letter on the Profile avatar. NEW in Phase 5a
     let name: String
 
@@ -200,12 +208,13 @@ private struct MainTabBar: View {
             profileItem                              // NEW in Phase 5a
         }
         .padding(.horizontal, 10)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
+        .padding(.top, compact ? 5 : 10)
+        .padding(.bottom, compact ? 4 : 8)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.10), radius: 14, x: 0, y: 6)
         .padding(.horizontal, 12)
-        .padding(.bottom, 4)
+        .padding(.bottom, compact ? 1 : 4)
+        .animation(.easeInOut(duration: 1.5).delay(0.3), value: compact)
     }
 
     /// One destination. Active gets the brand color, the rest stay faint, the
@@ -219,13 +228,14 @@ private struct MainTabBar: View {
                 Image(systemName: symbol)
                     .font(.system(size: 20))
                     .frame(height: 26)      // CHANGED in Phase 5a: as tall as the avatar
-                Text(label).font(.system(size: 10, weight: .semibold))
+                if !compact { Text(label).font(.system(size: 10, weight: .semibold)) }
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: compact ? 36 : 44)
             .foregroundStyle(active ? Theme.brand(accent) : Theme.faint)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 
@@ -243,9 +253,9 @@ private struct MainTabBar: View {
                 AvatarBadge(name: name, size: 22, accent: accent)
                     .padding(2)
                     .overlay(Circle().stroke(active ? brand : Color.clear, lineWidth: 1.5))
-                Text("Profile").font(.system(size: 10, weight: .semibold))
+                if !compact { Text("Profile").font(.system(size: 10, weight: .semibold)) }
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: compact ? 36 : 44)
             .foregroundStyle(active ? brand : Theme.faint)
             .contentShape(Rectangle())
         }
@@ -262,13 +272,13 @@ private struct MainTabBar: View {
             Image(systemName: "plus")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 54, height: 54)
+                .frame(width: compact ? 44 : 54, height: compact ? 44 : 54)
                 .background(Theme.brandGradient(accent), in: Circle())
                 .shadow(color: Theme.brand(accent).opacity(0.35), radius: 10, x: 0, y: 6)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add")
-        .frame(width: 62)       // a fixed middle slot, so the two halves balance
-        .offset(y: -14)         // lifted above the bar, like the web's -mt-6
+        .frame(width: compact ? 52 : 62) // a fixed middle slot, so the two halves balance
+        .offset(y: compact ? -8 : -14)   // lifted above the bar, like the web's -mt-6
     }
 }

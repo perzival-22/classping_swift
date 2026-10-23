@@ -229,9 +229,13 @@ struct MyClassesSection: View {
                 .buttonStyle(.plain)
             }
 
-            // Archived classes stay out, like the week: `activeCourses`.
-            ForEach(store.activeCourses) { course in
-                row(course)
+            // A compact two-column layout keeps class management from
+            // turning into a long stack of full-width rows.
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(store.activeCourses) { course in
+                    tile(course)
+                }
             }
         }
         // The "are you sure?" question, as an iOS action sheet. It shows
@@ -259,34 +263,40 @@ struct MyClassesSection: View {
                 })
     }
 
-    /// One class: its book, name and when it meets, then Edit and Delete.
-    private func row(_ course: Course) -> some View {
-        HStack(spacing: 12) {
-            SubjectBook(color: course.color, short: course.short, compact: true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(course.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                // "Mon/Wed 09:00–10:15 · Room 4", from Phase 5a.
-                Text(meetingSummary(course))
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.muted)
-                    .lineLimit(2)
+    /// One floating class tile: its book, meeting details and compact actions.
+    private func tile(_ course: Course) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .top, spacing: 6) {
+                SubjectBook(color: course.color, short: course.short, compact: true)
+                Spacer(minLength: 0)
+                HStack(spacing: 4) {
+                    circleButton("pencil", Theme.muted, label: "Edit \(course.name)") {
+                        onEdit(course)
+                    }
+                    circleButton("trash", Theme.faint, label: "Delete \(course.name)") {
+                        deleting = course
+                    }
+                }
             }
 
-            Spacer(minLength: 4)
+            Text(course.name)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.ink)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            circleButton("pencil", Theme.muted, label: "Edit \(course.name)") {
-                onEdit(course)
-            }
-            circleButton("trash", Theme.faint, label: "Delete \(course.name)") {
-                deleting = course
-            }
+            Text(meetingSummary(course))
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.muted)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .aspectRatio(1, contentMode: .fit)
         .cardStyle()
     }
 
@@ -300,7 +310,7 @@ struct MyClassesSection: View {
             Image(systemName: symbol)
                 .font(.system(size: 14))
                 .foregroundStyle(color)
-                .frame(width: 32, height: 32)
+                .frame(width: 26, height: 26)
                 .background(Theme.surface2, in: Circle())
         }
         .buttonStyle(.plain)

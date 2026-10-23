@@ -21,7 +21,13 @@ struct AssignmentLink: Hashable {
     let id: UUID
 }
 
+private enum TaskLayout: String {
+    case widgets
+    case list
+}
+
 struct AssignmentsView: View {
+    @Binding var tabBarCompact: Bool
     @Environment(Store.self) private var store
 
     // MARK: Remembered choices
@@ -33,6 +39,7 @@ struct AssignmentsView: View {
     @AppStorage("tasks.subject") private var subjectRaw = ""        // a class id, or ""
     @AppStorage("tasks.kind") private var kindRaw = ""              // a kind name, or ""
     @AppStorage("tasks.includeArchived") private var includeArchived = true
+    @AppStorage("tasks.layout") private var layoutRaw = TaskLayout.widgets.rawValue
 
     /// Whether the filter panel is open. Not remembered, like the web.
     @State private var filtersOpen = false
@@ -75,6 +82,14 @@ struct AssignmentsView: View {
                 }
                 .pickerStyle(.segmented)
 
+                Picker("Task layout", selection: $layoutRaw) {
+                    Label("Widgets", systemImage: "square.grid.2x2")
+                        .tag(TaskLayout.widgets.rawValue)
+                    Label("List", systemImage: "list.bullet")
+                        .tag(TaskLayout.list.rawValue)
+                }
+                .pickerStyle(.segmented)
+
                 TaskFilterBar(filters: filtersBinding, open: $filtersOpen,
                               courses: filterable, showing: list.count, total: total,
                               accent: accent)
@@ -91,14 +106,26 @@ struct AssignmentsView: View {
                 // One heading per non-empty group, then its rows.
                 ForEach(groups) { group in
                     header(group.id, group.label, group.tasks.count, accent)
-                    ForEach(group.tasks) { assignment in
-                        row(assignment, now)
+                    if layoutRaw == TaskLayout.widgets.rawValue {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                            GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                            ForEach(group.tasks) { assignment in
+                                taskWidget(assignment, now)
+                            }
+                        }
+                    } else {
+                        ForEach(group.tasks) { assignment in
+                            row(assignment, now)
+                        }
                     }
                 }
             }
             .padding(.horizontal, 18)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            .padding(.bottom, 120)
+        }
+        .onScrollPhaseChange { _, phase in
+            tabBarCompact = phase.isScrolling
         }
         .background(Theme.canvas)
         // Where a tapped row goes. The detail looks the assignment up by id, so
@@ -244,6 +271,74 @@ struct AssignmentsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 15)
+        .cardStyle()
+        .opacity(a.done ? 0.7 : 1)
+    }
+
+    /// A compact square task card for the widget layout. The check button
+    /// stays separate from the detail link, matching the list behavior.
+    private func taskWidget(_ a: Assignment, _ now: Date) -> some View {
+        let course = store.course(a.courseID)
+        let due = dueLabel(a.deadline, now)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                if !a.done { badge(a.kind) }
+                else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Theme.good)
+                }
+                Spacer(minLength: 0)
+                Button {
+                    store.toggleAssignment(a.id)
+                } label: {
+                    Image(systemName: a.done ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(a.done ? Theme.good : Theme.lineStrong)
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(a.done ? "Mark as open" : "Complete")
+            }
+
+            NavigationLink(value: AssignmentLink(id: a.id)) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(a.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(a.done ? Theme.muted : Theme.ink)
+                        .strikethrough(a.done)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(a.done ? Theme.hint : course.map { Theme.subject($0.color) } ?? Theme.lineStrong)
+                            .frame(width: 7, height: 7)
+                        Text(course?.name ?? "Inbox")
+                            .font(.system(size: 11))
+                            .foregroundStyle(a.done ? Theme.hint : Theme.muted)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    Text(a.done ? "Completed" : due.text)
+                        .font(.system(size: 10, weight: .bold))
+                        .lineLimit(1)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(a.done ? Theme.muted : due.urgent ? Theme.dangerInk : Theme.muted)
+                        .background(a.done ? Theme.surface2 : due.urgent ? Theme.dangerSoft : Theme.surface2,
+                                    in: Capsule())
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .aspectRatio(1, contentMode: .fit)
         .cardStyle()
         .opacity(a.done ? 0.7 : 1)
     }

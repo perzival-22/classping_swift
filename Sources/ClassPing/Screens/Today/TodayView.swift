@@ -47,6 +47,7 @@ enum TodaySheet: Identifiable {
 private let dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 struct TodayView: View {
+    @Binding var tabBarCompact: Bool
     @Environment(Store.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -121,6 +122,10 @@ struct TodayView: View {
                     }
                 }
                 .padding(16)
+                .padding(.bottom, 120)
+            }
+            .onScrollPhaseChange { _, phase in
+                tabBarCompact = phase.isScrolling
             }
             // Browsing weeks keeps the picked weekday inside the visible week.
             .onChange(of: weekOffset) { _, offset in
@@ -306,7 +311,8 @@ struct TodayView: View {
         // The classes, one card each. ForEach gives every card its slot's id,
         // which is how each ClassCard keeps its own open/folded state.
         if !dayClasses.isEmpty {
-            VStack(spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(dayClasses) { slot in
                     ClassCard(slot: slot, nowMin: nowMin)
                 }

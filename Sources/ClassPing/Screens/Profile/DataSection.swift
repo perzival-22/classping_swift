@@ -94,13 +94,13 @@ struct DataSection: View {
 
             // MARK: Back up
             Button(action: startBackup) {
-                rowLabel("💾", backedUp ? "Backup saved" : "Back up my data", accent)
+                rowLabel("cloud", backedUp ? "Backup saved" : "Back up my data", accent)
             }
             Divider()
 
             // MARK: Restore
             Button { restoring = true } label: {
-                rowLabel("📥", "Restore a backup", accent)
+                rowLabel("arrow.3.trianglepath", "Restore a backup", accent)
             }
             Divider()
 
@@ -108,7 +108,7 @@ struct DataSection: View {
             NavigationLink {
                 RecentlyDeletedView()
             } label: {
-                rowLabel("🗂️", "Recently Deleted", accent,
+                rowLabel("trash", "Recently Deleted", accent,
                          count: deletedCount > 0 ? deletedCount : nil)
             }
             Divider()
@@ -119,7 +119,7 @@ struct DataSection: View {
             } else {
                 Button { confirmClear = true } label: {
                     HStack(spacing: 12) {
-                        icon("🧹", Theme.warnSoft)
+                        icon("trash.fill", Theme.warnSoft, foreground: Theme.danger)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Clear all data")
                                 .font(.system(size: 15, weight: .medium))
@@ -184,12 +184,11 @@ struct DataSection: View {
         }
     }
 
-    /// One row: an emoji in a soft square, its words, and a count or arrow.
-    /// The web uses the same emoji, so the two apps look alike here.
-    private func rowLabel(_ emoji: String, _ title: String, _ accent: Profile.Accent,
+    /// One row: a symbol in a soft square, its words, and a count or arrow.
+    private func rowLabel(_ symbol: String, _ title: String, _ accent: Profile.Accent,
                           count: Int? = nil) -> some View {
         HStack(spacing: 12) {
-            icon(emoji, Theme.brandSoft(accent))
+            icon(symbol, Theme.brandSoft(accent), foreground: Theme.brand(accent))
             Text(title)
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Theme.ink)
@@ -206,10 +205,11 @@ struct DataSection: View {
         .contentShape(Rectangle())
     }
 
-    /// The emoji in its 36-point rounded square.
-    private func icon(_ emoji: String, _ fill: Color) -> some View {
-        Text(emoji)
-            .font(.system(size: 17))
+    /// A symbol in its 36-point rounded square.
+    private func icon(_ symbol: String, _ fill: Color, foreground: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 17, weight: .medium))
+            .foregroundStyle(foreground)
             .frame(width: 36, height: 36)
             .background(fill, in: RoundedRectangle(cornerRadius: 10))
             .accessibilityHidden(true)
