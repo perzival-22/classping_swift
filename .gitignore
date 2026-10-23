@@ -9,3 +9,5 @@ DerivedData/
 /docs
 /xtool
 /.claude
+# SwiftPM build output in nested packages
+**/.build/
